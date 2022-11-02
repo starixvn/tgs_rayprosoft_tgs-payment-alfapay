@@ -1,0 +1,62 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32804.467
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tgs.Payment.AlfaPay", "Tgs.Payment.AlfaPay\Tgs.Payment.AlfaPay.csproj", "{4F6AD1ED-0B31-45BC-BA21-A07144E2CE7D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{993ABD68-A51A-466B-8C70-AF768CBF4E46}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		CodeMaid.config = CodeMaid.config
+		nuget.config = nuget.config
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AlfaPay.Core", "AlfaPay.Core\AlfaPay.Core.csproj", "{25133317-5010-42C4-91F6-B2209126D900}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tgs.Payment.AlfaPay.Tests", "Tgs.Payment.AlfaPay.Tests\Tgs.Payment.AlfaPay.Tests.csproj", "{279D472C-AF4B-4157-8FE9-F50D4A32772C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tgs.Payment.AlfaPay.Client", "Tgs.Payment.AlfaPay.Client\Tgs.Payment.AlfaPay.Client.csproj", "{F640D151-B579-40E7-80AB-F3D4A35455C9}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AlfaPayTest", "AlfaPayTest\AlfaPayTest.csproj", "{41F2BDC5-E742-4F18-8CE5-7B9946103EA1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tgs.Payment.AlfaPay.IntegrationTests", "Tgs.Payment.AlfaPay.IntegrationTests\Tgs.Payment.AlfaPay.IntegrationTests.csproj", "{07CC562D-408D-4256-82E2-2120B115B5C5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4F6AD1ED-0B31-45BC-BA21-A07144E2CE7D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4F6AD1ED-0B31-45BC-BA21-A07144E2CE7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4F6AD1ED-0B31-45BC-BA21-A07144E2CE7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4F6AD1ED-0B31-45BC-BA21-A07144E2CE7D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{25133317-5010-42C4-91F6-B2209126D900}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{25133317-5010-42C4-91F6-B2209126D900}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{25133317-5010-42C4-91F6-B2209126D900}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{25133317-5010-42C4-91F6-B2209126D900}.Release|Any CPU.Build.0 = Release|Any CPU
+		{279D472C-AF4B-4157-8FE9-F50D4A32772C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{279D472C-AF4B-4157-8FE9-F50D4A32772C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{279D472C-AF4B-4157-8FE9-F50D4A32772C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{279D472C-AF4B-4157-8FE9-F50D4A32772C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F640D151-B579-40E7-80AB-F3D4A35455C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F640D151-B579-40E7-80AB-F3D4A35455C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F640D151-B579-40E7-80AB-F3D4A35455C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F640D151-B579-40E7-80AB-F3D4A35455C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{41F2BDC5-E742-4F18-8CE5-7B9946103EA1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41F2BDC5-E742-4F18-8CE5-7B9946103EA1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41F2BDC5-E742-4F18-8CE5-7B9946103EA1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41F2BDC5-E742-4F18-8CE5-7B9946103EA1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07CC562D-408D-4256-82E2-2120B115B5C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07CC562D-408D-4256-82E2-2120B115B5C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07CC562D-408D-4256-82E2-2120B115B5C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07CC562D-408D-4256-82E2-2120B115B5C5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {EE2F10A9-3443-4F3F-BCC7-DA3C22C159A8}
+	EndGlobalSection
+EndGlobal

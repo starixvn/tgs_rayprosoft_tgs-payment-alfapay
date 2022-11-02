@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<RootNamespace>Tgs.Payment.AlfaPay</RootNamespace>
+	<Version>0.0.2</Version>
+	<Authors>Raypro</Authors>
+	<Company>Raypro</Company>
+	<PackageId>Tgs.Payment.AlfaPay.Client</PackageId>
+  </PropertyGroup>
+
+</Project>
