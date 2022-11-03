@@ -14,13 +14,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AlfaPay.Core", "AlfaPay.Core\AlfaPay.Core.csproj", "{25133317-5010-42C4-91F6-B2209126D900}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tgs.Payment.AlfaPay.Tests", "Tgs.Payment.AlfaPay.Tests\Tgs.Payment.AlfaPay.Tests.csproj", "{279D472C-AF4B-4157-8FE9-F50D4A32772C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AlfaPay.Core.UnitTests", "Tgs.Payment.AlfaPay.Tests\AlfaPay.Core.UnitTests.csproj", "{279D472C-AF4B-4157-8FE9-F50D4A32772C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tgs.Payment.AlfaPay.Client", "Tgs.Payment.AlfaPay.Client\Tgs.Payment.AlfaPay.Client.csproj", "{F640D151-B579-40E7-80AB-F3D4A35455C9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AlfaPayTest", "AlfaPayTest\AlfaPayTest.csproj", "{41F2BDC5-E742-4F18-8CE5-7B9946103EA1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tgs.Payment.AlfaPay.IntegrationTests", "Tgs.Payment.AlfaPay.IntegrationTests\Tgs.Payment.AlfaPay.IntegrationTests.csproj", "{07CC562D-408D-4256-82E2-2120B115B5C5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tgs.Payment.AlfaPay.IntegrationTests", "Tgs.Payment.AlfaPay.IntegrationTests\Tgs.Payment.AlfaPay.IntegrationTests.csproj", "{07CC562D-408D-4256-82E2-2120B115B5C5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
