@@ -41,12 +41,12 @@ builder.Services
         .ConfigQueueOptions((options, _) => options.Url = builder.Configuration.GetConnectionString("Nats"))
         .AddProcessor(
             ProcessorTypes.DepositProcessorType,
-            "tgs.payment.malakipay.deposit",
-            "tgs.payment.malakipay.deposit")
+            "tgs.payment.alfapay.deposit",
+            "tgs.payment.alfapay.deposit")
         .AddProcessor(
             ProcessorTypes.WithdrawProcessorType,
-            "tgs.payment.malakipay.withdraw",
-            "tgs.payment.malakipay.withdraw"))
+            "tgs.payment.alfapay.withdraw",
+            "tgs.payment.alfapay.withdraw"))
     .AddNatsGlobPatternExchange("*");
 
 builder.Services
