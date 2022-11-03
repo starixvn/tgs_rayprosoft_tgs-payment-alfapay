@@ -15,4 +15,7 @@ public class DepositResponseData
 
     [JsonPropertyName("uri")]
     public string Uri { get; init; } = default!;
+
+    [JsonPropertyName("qrcode")]
+    public string QrCode { get; init; } = default!;
 }
