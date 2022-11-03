@@ -45,14 +45,14 @@ push-nuget:
   only:
     - main
   script:
-    - dotnet pack -c $BuildConfiguration "TuPay.Client/AlfaPay.Client.csproj" --no-build --no-restore
-    - dotnet nuget push "TuPay.Client/bin/$BuildConfiguration/*.nupkg" -s "raypro-baget" -k $NugetApiKey --skip-duplicate
+    - dotnet pack -c $BuildConfiguration "Tgs.Payment.AlfaPay.Client/AlfaPay.Client.csproj" --no-build --no-restore
+    - dotnet nuget push "Tgs.Payment.AlfaPay.Client/bin/$BuildConfiguration/*.nupkg" -s "raypro-baget" -k $NugetApiKey --skip-duplicate
   artifacts:
     name: Nuget
     untracked: false
     expire_in: "30 days"
     paths:
-      - TuPay.Client/bin/$BuildConfiguration/*.nupkg
+      - Tgs.Payment.AlfaPay.Client/bin/$BuildConfiguration/*.nupkg
 
 push-docker-image:
   stage: publish
@@ -64,7 +64,7 @@ push-docker-image:
     - main
   script:
     - export Tag="$(date -d $CI_PIPELINE_CREATED_AT +%Y%m%d%H%M).$CI_PIPELINE_IID"
-    - dotnet build "Tgs.Payment.TuPay/Tgs.Payment.AlfaPay.csproj" -c $BuildConfiguration -t:ContainerBuild -p:DockerfileTag="$ImageName:$Tag" --no-restore
+    - dotnet build "Tgs.Payment.AlfaPay/Tgs.Payment.AlfaPay.csproj" -c $BuildConfiguration -t:ContainerBuild -p:DockerfileTag="$ImageName:$Tag" --no-restore
     - docker push $ImageName:$Tag
 
 push-k8s-template:
