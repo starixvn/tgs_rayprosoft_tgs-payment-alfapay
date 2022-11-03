@@ -45,7 +45,7 @@ push-nuget:
   only:
     - main
   script:
-    - dotnet pack -c $BuildConfiguration "Tgs.Payment.AlfaPay.Client/AlfaPay.Client.csproj" --no-build --no-restore
+    - dotnet pack -c $BuildConfiguration "Tgs.Payment.AlfaPay.Client/Tgs.Payment.AlfaPay.Client.csproj" --no-build --no-restore
     - dotnet nuget push "Tgs.Payment.AlfaPay.Client/bin/$BuildConfiguration/*.nupkg" -s "raypro-baget" -k $NugetApiKey --skip-duplicate
   artifacts:
     name: Nuget
