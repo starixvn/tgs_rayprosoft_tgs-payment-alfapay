@@ -1,10 +1,9 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpLogging;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Instrumentation.AspNetCore;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Tgs.Payment.AlfaPay;
 using Tgs.Payment.AlfaPay.MessageQueue;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,16 +27,15 @@ builder.Logging
     });
 
 builder.Services
-    .AddControllers();    
+    .AddControllers();
 
 builder.Services
     .AddHttpClientLoggingHandler()
-    .AddAlfaPay((options, sp) =>
-    {
-        var config = sp.GetRequiredService<IConfiguration>();
-
-        config.GetSection("AlfaPay").Bind(options);
-    })
+    .AddAlfaPay(
+        (options, _) => builder.Configuration
+            .GetSection("AlfaPay")
+            .Bind(options),
+        sp => sp.ResolveLoggingHandler<AlfaPayOptions>())
     .AddMessageQueue()
     .AddNatsMessageQueue(natsConfig => natsConfig
         .ConfigQueueOptions((options, _) => options.Url = builder.Configuration.GetConnectionString("Nats"))
@@ -111,7 +109,5 @@ app.Use(async (context, next) =>
         _ = await stream.ReadToEndAsync().ConfigureAwait(false);
     }
 });
-
-app.MapProfileViewer();
 
 app.Run();

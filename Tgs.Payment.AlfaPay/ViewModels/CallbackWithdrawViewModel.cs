@@ -11,9 +11,9 @@ public class CallbackWithdrawViewModel
     public decimal Amount { get; init; }
     [JsonPropertyName("out_trade_no")]
     public string OutTradeNo { get; init; } = default!;
-    
+
     [JsonPropertyName("state")]
-    public string State { get; init; }
+    public string State { get; init; } = default!;
 
     [JsonPropertyName("sign")]
     public string Sign { get; init; } = default!;
