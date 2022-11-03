@@ -26,11 +26,14 @@ public static class ServiceCollectionExtensions
             .Services
             .RegisterAllServiceUtilityTypes(Assembly.GetExecutingAssembly(), ServiceLifetime.Transient)
             .AddPaymentClient()
-            .AddPaymentServiceClient((options, sp) =>
-            {
-                var AlfaPayOptions = sp.GetRequiredService<IOptions<AlfaPayOptions>>().Value;
+            .AddPaymentServiceClient(httpClientBuilder => httpClientBuilder
+                .ConfigureHttpClient((sp, http) =>
+                {
+                    var skyPayOptions = sp.GetRequiredService<IOptions<AlfaPayOptions>>().Value;
 
-                options.PaymentServiceBaseUrl = AlfaPayOptions.PaymentServiceBaseUrl;
-            })
-            .AddSingleton<AlfaPayHasher>();
+                    http.BaseAddress = skyPayOptions.PaymentServiceBaseUrl;
+                })
+                .AddHttpMessageHandler(httpClientMessageHandlerFactory))
+            .AddSingleton<AlfaPayHasher>()
+            .AddSingleton<AlfaPaySerializer>();
 }

@@ -1,6 +1,7 @@
-﻿using System.Text.Json;
+﻿using System.Net.Mime;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Tgs.Payment.AlfaPay.Services;
+using Tgs.Payment.AlfaPay.ApplicationServices;
 using Tgs.Payment.AlfaPay.ViewModels;
 using Tgs.Payment.Clients;
 using Tgs.ServiceUtility;
@@ -18,12 +19,15 @@ public class WithdrawController : ControllerBase
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    [Consumes("application/json")]
+    [Produces(MediaTypeNames.Text.Plain)]
     [HttpPost("callback")]
-    [Produces("text/plain")]
-    public async Task<string> WithdrawCallback(
-        [FromServices] IGetService<GetWithdrawFormQuery, Services.WithdrawFormInfo?> getWithdrawFormService,
+    public async Task<string> WithdrawCallbackAsync(
+        [FromServices] IGetService<GetWithdrawFormQuery, WithdrawForm?> getWithdrawFormService,
         [FromServices] ICommandService<CheckSigningCodeCommand> checkSigningCodeService,
-        [FromServices] ICommandService<SaveWithdrawReturnCommand> saveReturnService,
+        [FromServices] IPaymentServiceClient paymentServiceClient,
+        [FromServices] AlfaPaySerializer serializer,
+        [FromServices] IPaymentClient paymentClient,
         [FromBody] Dictionary<string, object> response)
     {
         var json = JsonSerializer.Serialize(response);
@@ -34,12 +38,25 @@ public class WithdrawController : ControllerBase
 
         var withdrawResponse = JsonSerializer.Deserialize<CallbackWithdrawViewModel>(json)!;
 
+        var paymentReturn = new AlfaPayWithdrawReturn()
+        {
+            TradeNo = withdrawResponse.TradeNo,
+            Amount = withdrawResponse.Amount,
+            OutTradeNo = Guid.Parse(withdrawResponse.OutTradeNo),
+            State = withdrawResponse.State,
+            Sign = withdrawResponse.Sign,
+            CallbackUrl = withdrawResponse.CallbackUrl
+        };
+
+        if (paymentReturn.State is not "completed")
+            return "fail";
+
         var withdrawForm = await getWithdrawFormService
-            .GetAsync(new GetWithdrawFormQuery(withdrawResponse.OutTradeNo))
+            .GetAsync(new GetWithdrawFormQuery(paymentReturn.OutTradeNo))
             .ConfigureAwait(false);
 
         if (withdrawForm == null)
-            return "Withdraw form not found.";
+            return "fail";
 
         var checkSigningCodeCommand = new CheckSigningCodeCommand(
             dict,
@@ -51,54 +68,32 @@ public class WithdrawController : ControllerBase
             .ExecuteAsync(checkSigningCodeCommand)
             .ConfigureAwait(false);
 
-        if (await checkSigningCodeCommand.CommandResultSource.Task.ConfigureAwait(false))
+        if (await checkSigningCodeCommand.CommandResultSource.Task.ConfigureAwait(false) is false)
+            return "fail";
+
+        var fsm = paymentServiceClient.CreateWithdrawStateMachine(withdrawForm.Status);
+
+        if (paymentReturn.State == "completed")
         {
-            var returnData = new AlfaPayWithdrawReturn()
+            if (fsm.CanFire(PaymentTrigger.PaymentWithdrawCompleted))
             {
-                TradeNo = withdrawResponse.TradeNo,
-                Amount = withdrawResponse.Amount,
-                OutTradeNo = withdrawResponse.OutTradeNo,
-                State = withdrawResponse.State,
-                Sign = withdrawResponse.Sign,
-                CallbackUrl = withdrawResponse.CallbackUrl
-            };
+                await fsm.FireAsync(PaymentTrigger.PaymentWithdrawCompleted).ConfigureAwait(false);
 
-            if (withdrawResponse.State == "completed")
-            {
-                var formStatus = withdrawForm.Status;
-                if (withdrawForm.Status == PaymentFlowState.Approved)
-                    formStatus = PaymentFlowState.Paid;
-
-                var saveWithdrawCommand = new SaveWithdrawReturnCommand(
+                await paymentServiceClient.SubmitWithdrawFormStatusAsync(
                     withdrawForm.Id,
-                    formStatus,
-                    returnData,
-                    returnData.Amount);
+                    paymentReturn: serializer.Serialize(paymentReturn)).ConfigureAwait(false);
 
-                await saveReturnService
-                    .ExecuteAsync(saveWithdrawCommand)
+                await paymentClient
+                    .PaidWithdrawAsync(
+                        withdrawForm.Id,
+                        withdrawForm.BrandId,
+                        HttpContext.RequestAborted)
                     .ConfigureAwait(false);
             }
-            else
-            {
-                var saveWithdrawCommand = new SaveWithdrawReturnCommand(
-                    withdrawForm.Id,
-                    withdrawForm.Status,
-                    returnData,
-                    null);
-
-                await saveReturnService
-                    .ExecuteAsync(saveWithdrawCommand)
-                    .ConfigureAwait(false);
-            }
-
-            _logger.LogInformation(JsonSerializer.Serialize(returnData));
-
-            _logger.LogInformation("callback executed");
-
-            return "success";
         }
-        else
-            throw new Exception();
+
+        _logger.LogInformation("callback executed");
+
+        return "ok";
     }
 }

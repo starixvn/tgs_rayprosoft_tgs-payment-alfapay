@@ -14,7 +14,7 @@ public class AlfaPayWithdrawReturn
     public decimal Amount { get; init; }
 
     [JsonPropertyName("out_trade_no")]
-    public string OutTradeNo { get; init; } = default!;
+    public Guid OutTradeNo { get; init; }
 
     /// <summary>
     /// 状态码

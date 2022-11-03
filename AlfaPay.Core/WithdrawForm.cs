@@ -1,8 +1,8 @@
 ﻿using Tgs.Payment.Clients;
 
-namespace Tgs.Payment.AlfaPay.Services;
+namespace Tgs.Payment.AlfaPay;
 
-public record WithdrawFormInfo(
+public record WithdrawForm(
       Guid Id,
       string? UserId,
       UserType UserType,

@@ -1,4 +1,4 @@
-﻿namespace Tgs.Payment.AlfaPay.Services;
+﻿namespace Tgs.Payment.AlfaPay.ApplicationServices;
 
 public record CheckSigningCodeCommand(
     IDictionary<string, object> Data,

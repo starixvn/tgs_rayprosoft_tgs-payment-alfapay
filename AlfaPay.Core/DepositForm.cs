@@ -2,7 +2,7 @@
 
 namespace Tgs.Payment.AlfaPay;
 
-public record DepositFormInfo(
+public record DepositForm(
     Guid Id,
     string PlayerCode,
     Guid BrandId,

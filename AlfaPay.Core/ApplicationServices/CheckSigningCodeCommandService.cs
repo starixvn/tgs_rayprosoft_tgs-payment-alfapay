@@ -1,6 +1,6 @@
 ﻿using Tgs.ServiceUtility;
 
-namespace Tgs.Payment.AlfaPay.Services;
+namespace Tgs.Payment.AlfaPay.ApplicationServices;
 
 internal class CheckSigningCodeCommandService : ICommandService<CheckSigningCodeCommand>
 {
