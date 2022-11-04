@@ -21,7 +21,9 @@ internal class AlfaPayClient
     {
         var orderJson = JsonSerializer.Serialize(order);
         var orderDict = JsonSerializer
-            .Deserialize<Dictionary<string, object>>(orderJson)!;                
+            .Deserialize<Dictionary<string, object>>(orderJson)!;
+
+        _logger.LogInformation("AlfaPayClient Deposit apiToken:{apiToken}, orderJson:{orderJson}", apiToken, orderJson);
 
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiToken);
@@ -46,6 +48,8 @@ internal class AlfaPayClient
         var orderJson = JsonSerializer.Serialize(order);
         var orderDict = JsonSerializer
             .Deserialize<Dictionary<string, object>>(orderJson)!;
+
+        _logger.LogInformation("AlfaPayClient Withdraw apiToken:{apiToken}, orderJson:{orderJson}", apiToken, orderJson);
 
         var sign = AlfaPayHasher.ComputeHash(apiToken, notifyToken, orderDict);
 
