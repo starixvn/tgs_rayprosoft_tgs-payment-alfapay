@@ -32,13 +32,15 @@ internal class Demo : BackgroundService
 
     private async Task DepoistAsync()
     {
-        var apiToken = "sUxtpDWiNoqUxKfqJoHCL69TS4omJRB1fBoaw4PfJT4Boncf8cLj6lYtN5DS";          
+        var apiToken = "sUxtpDWiNoqUxKfqJoHCL69TS4omJRB1fBoaw4PfJT4Boncf8cLj6lYtN5DS";
+        var notitfyToken = "NotifyToken";
         var orderNo = Guid.NewGuid();
         var amount = 500.00m;        
 
 
         var depositSettings = new AlfaPayDepositSettings(
-            apiToken,            
+            apiToken,
+            notitfyToken,
             orderNo,            
             PaidName: null);
         try

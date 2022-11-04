@@ -35,7 +35,6 @@ public class DepositController : ControllerBase
         _logger.LogInformation("AlfaPay Deposit Callback:{json}", json);
 
         var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;
-        _ = dict.Remove("sign");
 
         var depositResponse = JsonSerializer.Deserialize<CallbackDepositViewModel>(json)!;
 
@@ -66,7 +65,8 @@ public class DepositController : ControllerBase
             dict,
             depositResponse.Sign,
             depositForm!.ApplyInfo!.Settings.ApiToken,
-            null);
+            depositForm!.ApplyInfo!.Settings.NotifyToken,
+            AlfaPayPaymentType.Deposit);
 
         await checkSigningCodeService
             .ExecuteAsync(checkSigningCodeCommand)

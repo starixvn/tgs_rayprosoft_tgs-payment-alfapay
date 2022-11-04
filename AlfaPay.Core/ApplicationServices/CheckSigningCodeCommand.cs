@@ -4,7 +4,8 @@ public record CheckSigningCodeCommand(
     IDictionary<string, object> Data,
     string SigningCode,
     string ApiToken,
-    string? NotifyToken)
+    string NotifyToken,
+    AlfaPayPaymentType PaymentType)
 {
     public TaskCompletionSource<bool> CommandResultSource { get; } = new TaskCompletionSource<bool>();
 };

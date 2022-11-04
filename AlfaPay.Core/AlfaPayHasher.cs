@@ -12,16 +12,31 @@ namespace Tgs.Payment.AlfaPay
             _Md5 = MD5.Create();
         }
 
-        public static string ComputeHash(string apiToken, string? notifyToken, IDictionary<string, object> dict)
+        public static string ComputeHash(string apiToken, string notifyToken, AlfaPayPaymentType paymentType, IDictionary<string, object> dict)
         {
-            var content = string.Join(
-                "&",
-                dict.Where(x => x.Key is not "sign")
+            IEnumerable<string?> sortDict;
+            if (paymentType == AlfaPayPaymentType.Deposit)
+            {
+                sortDict = dict
+                .Where(x => x.Key != "sign" && x.Key != "callback_url")
+                .OrderBy(x => x.Key)
+                .Select(p =>
+                {
+                    return p.Value is null ? $"{p.Key}=" : $"{p.Key}={p.Value}";
+                });
+            }
+            else
+            {
+                sortDict = dict
+                    .Where(x => x.Key != "sign")
                     .OrderBy(x => x.Key)
                     .Select(p =>
                     {
                         return p.Value is null ? $"{p.Key}=" : $"{p.Key}={p.Value}";
-                    }));
+                    });
+            }
+
+            var content = string.Join("&", sortDict);
 
             var plainText = $"{content}{apiToken}{notifyToken}";
 

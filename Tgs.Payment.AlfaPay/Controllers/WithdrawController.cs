@@ -62,7 +62,8 @@ public class WithdrawController : ControllerBase
             dict,
             withdrawResponse.Sign,
             withdrawForm!.ApplyInfo!.Settings.ApiToken,
-            withdrawForm.ApplyInfo.Settings.NotifyToken);
+            withdrawForm.ApplyInfo.Settings.NotifyToken,
+            AlfaPayPaymentType.Withdraw);
 
         await checkSigningCodeService
             .ExecuteAsync(checkSigningCodeCommand)

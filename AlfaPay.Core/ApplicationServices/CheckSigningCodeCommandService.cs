@@ -14,7 +14,7 @@ internal class CheckSigningCodeCommandService : ICommandService<CheckSigningCode
 
     public ValueTask ExecuteAsync(CheckSigningCodeCommand command, CancellationToken cancellationToken = default)
     {
-        var signCode = AlfaPayHasher.ComputeHash(command.ApiToken, command.NotifyToken, command.Data);
+        var signCode = AlfaPayHasher.ComputeHash(command.ApiToken, command.NotifyToken, command.PaymentType, command.Data);
         _logger.LogInformation("AlfaPay Callback Sign:{command.SigningCode} , ComputeHash signCode:{signCode}", command.SigningCode, signCode);
 
         command.CommandResultSource.SetResult(signCode == command.SigningCode);
