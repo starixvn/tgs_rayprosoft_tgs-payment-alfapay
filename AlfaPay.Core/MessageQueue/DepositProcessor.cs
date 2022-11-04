@@ -45,7 +45,7 @@ internal class DepositProcessor : IMessageProcessor
 
             var msg = new DepositResponse
             {
-                Result = JsonSerializer.Serialize(applyInfo)
+                Result = _alfaPaySerializer.Serialize(applyInfo)
             };
 
             return msg.ToByteArray();
@@ -58,7 +58,7 @@ internal class DepositProcessor : IMessageProcessor
 
             var msg = new DepositResponse
             {
-                Result = JsonSerializer.Serialize(applyInfo)
+                Result = _alfaPaySerializer.Serialize(applyInfo)
             };
 
             return msg.ToByteArray();

@@ -49,7 +49,7 @@ internal class WithdrawProcessor : IMessageProcessor
 
             var msg = new WithdrawResponse
             {
-                Result = JsonSerializer.Serialize(applyInfo)
+                Result = _alfaPaySerializer.Serialize(applyInfo)
             };
 
             return msg.ToByteArray();
@@ -64,7 +64,7 @@ internal class WithdrawProcessor : IMessageProcessor
 
             var msg = new WithdrawResponse
             {
-                Result = JsonSerializer.Serialize(applyInfo)
+                Result = _alfaPaySerializer.Serialize(applyInfo)
             };
 
             return msg.ToByteArray();
