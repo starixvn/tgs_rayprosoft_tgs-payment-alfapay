@@ -5,7 +5,7 @@ namespace Tgs.Payment.AlfaPay.ViewModels;
 public class CallbackDepositViewModel
 {
     [JsonPropertyName("trade_no")]
-    public string TradeNo { get; init; } = default!;    
+    public string TradeNo { get; init; } = default!;
 
     /// <summary>
     /// 支付请求金额
@@ -17,10 +17,11 @@ public class CallbackDepositViewModel
     /// 支付实际金额
     /// </summary>
     [JsonPropertyName("amount")]
-    public decimal Amount { get; init; }
+    public string Amount { get; init; } = default!;
+
     [JsonPropertyName("out_trade_no")]
     public string OutTradeNo { get; init; } = default!;
-    
+
     /// <summary>
     /// 状态码
     /// </summary>
