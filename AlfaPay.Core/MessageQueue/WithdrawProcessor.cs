@@ -10,21 +10,24 @@ namespace Tgs.Payment.AlfaPay.MessageQueue;
 internal class WithdrawProcessor : IMessageProcessor
 {
     private readonly AlfaPayClient _alfaPayClient;
+    private readonly AlfaPaySerializer _alfaPaySerializer;
     private readonly AlfaPayOptions _options;
 
 
     public WithdrawProcessor(
         AlfaPayClient alfaPayClient,
+        AlfaPaySerializer alfaPaySerializer,
         IOptions<AlfaPayOptions> optionsAccessor)
     {
         _alfaPayClient = alfaPayClient ?? throw new ArgumentNullException(nameof(alfaPayClient));
+        _alfaPaySerializer = alfaPaySerializer ?? throw new ArgumentNullException(nameof(alfaPaySerializer));
         _options = optionsAccessor.Value;
     }
 
     public async ValueTask<ReadOnlyMemory<byte>> HandleAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
     {
         var request = WithdrawRequest.Parser.ParseFrom(data.Span);
-        var settings = JsonSerializer.Deserialize<AlfaPayWithdrawSettings>(request.ApplyInfo)!;
+        var settings = _alfaPaySerializer.Deserialize<AlfaPayWithdrawSettings>(request.ApplyInfo)!;
 
         var order = new WithdrawOrder
         {

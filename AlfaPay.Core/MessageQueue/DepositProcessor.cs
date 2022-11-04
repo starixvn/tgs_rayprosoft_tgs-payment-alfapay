@@ -3,27 +3,29 @@ using Google.Protobuf;
 using Microsoft.Extensions.Options;
 using Tgs.MessageQueue;
 using Tgs.Payment.Protos;
-using Tgs.Payment.AlfaPay;
 
 namespace Tgs.Payment.AlfaPay.MessageQueue;
 
 internal class DepositProcessor : IMessageProcessor
 {
     private readonly AlfaPayClient _alfaPayClient;
+    private readonly AlfaPaySerializer _alfaPaySerializer;
     private readonly AlfaPayOptions _options;
 
     public DepositProcessor(
         AlfaPayClient alfaPayClient,
+        AlfaPaySerializer alfaPaySerializer,
         IOptions<AlfaPayOptions> optionsAccessor)
     {
         _alfaPayClient = alfaPayClient ?? throw new ArgumentNullException(nameof(alfaPayClient));
+        _alfaPaySerializer = alfaPaySerializer ?? throw new ArgumentNullException(nameof(alfaPaySerializer));
         _options = optionsAccessor.Value;
     }
 
     public async ValueTask<ReadOnlyMemory<byte>> HandleAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
     {
         var request = DepositRequest.Parser.ParseFrom(data.Span);
-        var settings = JsonSerializer.Deserialize<AlfaPayDepositSettings>(request.ApplyInfo)!;
+        var settings = _alfaPaySerializer.Deserialize<AlfaPayDepositSettings>(request.ApplyInfo)!;
 
         var order = new DepositOrder
         {
