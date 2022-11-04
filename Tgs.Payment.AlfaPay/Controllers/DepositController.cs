@@ -43,7 +43,7 @@ public class DepositController : ControllerBase
         {
             TradeNo = depositResponse.TradeNo,
             RequestAmount = depositResponse.RequestAmount,
-            Amount = depositResponse.Amount,
+            Amount = decimal.Parse(depositResponse.Amount),
             OutTradeNo = Guid.Parse(depositResponse.OutTradeNo),
             State = depositResponse.State,
             Sign = depositResponse.Sign,
