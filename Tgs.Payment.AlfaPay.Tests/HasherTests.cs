@@ -88,7 +88,7 @@ public class HasherTests
         var accountNumber = "099517585997";
         var amount = "200";
         var bankId = "GCASH";
-        var bankOwner = "¤ý¤p©ú";
+        var bankOwner = "\u738B\u5C0F\u660E";
         var callBackUrl = "https://dev-payment.rpgp.cc/alfapay/withdraw/callback";
         var outTradeNo = "cb9426c9-d6fe-4834-8ef7-9611aa94010a";
         var sign = "603e51a46389f7bfd0d4470e349ab5cb";
