@@ -6,4 +6,4 @@ public record AlfaPayWithdrawSettings(
     string AccountNumber,
     string BankId,
     string BankOwner,
-    Guid OrderNo);
+    Guid FormId);

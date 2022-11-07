@@ -1,9 +1,8 @@
-﻿using System.Text.Json;
-using Google.Protobuf;
+﻿using Google.Protobuf;
 using Microsoft.Extensions.Options;
 using Tgs.MessageQueue;
+using Tgs.Payment.Clients;
 using Tgs.Payment.Protos;
-using Tgs.Payment.AlfaPay;
 
 namespace Tgs.Payment.AlfaPay.MessageQueue;
 
@@ -11,16 +10,18 @@ internal class WithdrawProcessor : IMessageProcessor
 {
     private readonly AlfaPayClient _alfaPayClient;
     private readonly AlfaPaySerializer _alfaPaySerializer;
+    private readonly IPaymentClient _paymentClient;
     private readonly AlfaPayOptions _options;
-
 
     public WithdrawProcessor(
         AlfaPayClient alfaPayClient,
         AlfaPaySerializer alfaPaySerializer,
-        IOptions<AlfaPayOptions> optionsAccessor)
+        IOptions<AlfaPayOptions> optionsAccessor,
+        IPaymentClient paymentClient)
     {
         _alfaPayClient = alfaPayClient ?? throw new ArgumentNullException(nameof(alfaPayClient));
         _alfaPaySerializer = alfaPaySerializer ?? throw new ArgumentNullException(nameof(alfaPaySerializer));
+        _paymentClient = paymentClient ?? throw new ArgumentNullException(nameof(paymentClient));
         _options = optionsAccessor.Value;
     }
 
@@ -36,7 +37,7 @@ internal class WithdrawProcessor : IMessageProcessor
             BankId = settings.BankId,
             BankOwner = settings.BankOwner,
             CallbackUrl = $"{_options.CallbackBaseUrl}/withdraw/callback",
-            OutTradeNo = settings.OrderNo.ToString(),
+            OutTradeNo = settings.FormId.ToString(),
         };
 
         var withdrawResponse = await _alfaPayClient
@@ -46,6 +47,15 @@ internal class WithdrawProcessor : IMessageProcessor
         if (withdrawResponse != null && withdrawResponse.Success == true)
         {
             var applyInfo = new AlfaPayWithdrawApplyInfo(settings, withdrawResponse);
+
+            var thirdPartyOrderNo = applyInfo.Response.Data!.TradeNo;
+
+            await _paymentClient
+            .SaveWithdrawFormThirdPartyOrderNoAsync(
+                settings.FormId,
+                thirdPartyOrderNo,
+                cancellationToken)
+            .ConfigureAwait(false);
 
             var msg = new WithdrawResponse
             {
