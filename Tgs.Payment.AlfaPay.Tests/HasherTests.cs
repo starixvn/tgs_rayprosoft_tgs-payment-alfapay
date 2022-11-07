@@ -42,7 +42,7 @@ public class HasherTests
     public void Test_Hash_Deposit_Callback()
     {
         var json = "{\"trade_no\":\"d835f6c0-9881-453f-ad04-d963cae3698c\",\"amount\":\"580.00\",\"request_amount\":\"580\",\"out_trade_no\":\"5993ee9d-4712-4cc6-acc4-45f575189657\",\"state\":\"completed\",\"callback_url\":\"https://example.com/notify\",\"sign\":\"1ed30abda08395adb9cacabca1d669ad\"}";
-        var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;            
+        var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;
 
         var apiToken = "3p3FCtslWkFu9iFkAnFjOKRLWZoqAy58iaDldaCZ1M4jNmyVJA0fhkSe5IIv";
         var notifyToken = "sPknBbCd38DZWHhEZ2DyHFdyvgkDwULFl7tefGILMYwOUIaFjhqIsUps3T98";
@@ -72,7 +72,7 @@ public class HasherTests
     public void Test_Deposit_Callback_Hash()
     {
         var json = "{\"trade_no\":\"d835f6c0-9881-453f-ad04-d963cae3698c\",\"request_amount\":580,\"amount\":\"580.00\",\"out_trade_no\":\"5993ee9d-4712-4cc6-acc4-45f575189657\",\"state\":\"completed\",\"sign\":\"77211c6cbb8079b8cb0635ce3619b407\"}";
-        var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;            
+        var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;
 
         var apiToken = "3p3FCtslWkFu9iFkAnFjOKRLWZoqAy58iaDldaCZ1M4jNmyVJA0fhkSe5IIv";
         var notifyToken = "sPknBbCd38DZWHhEZ2DyHFdyvgkDwULFl7tefGILMYwOUIaFjhqIsUps3T98";

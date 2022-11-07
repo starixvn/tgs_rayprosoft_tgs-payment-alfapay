@@ -49,15 +49,13 @@ internal class AlfaPayClient
         var orderDict = JsonSerializer
             .Deserialize<Dictionary<string, object>>(orderJson)!;
 
-        _logger.LogInformation("AlfaPayClient Withdraw apiToken:{apiToken}, orderJson:{orderJson}", apiToken, orderJson);
+        _logger.LogInformation("AlfaPayClient Withdraw apiToken:{apiToken}, notifyToken:{notifyToken},  orderJson:{orderJson}", apiToken, notifyToken, orderJson);
 
         var sign = AlfaPayHasher.ComputeHash(apiToken, notifyToken, AlfaPayPaymentType.Withdraw, orderDict);
 
         orderDict["sign"] = sign;
 
-        var paramDict = orderDict
-            .AsEnumerable()
-            .Select(p => new KeyValuePair<string?, string?>(p.Key, p.Value?.ToString()));
+        _logger.LogInformation("AlfaPay Withdraw Send sign:{sign}", sign);
 
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiToken);

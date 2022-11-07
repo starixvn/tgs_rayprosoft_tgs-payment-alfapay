@@ -26,8 +26,8 @@ internal class Demo : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await DepoistAsync();
-        //await WithdrawAsync();
+        //await DepoistAsync();
+        await WithdrawAsync();
     }
 
     private async Task DepoistAsync()
@@ -61,7 +61,7 @@ internal class Demo : BackgroundService
     {        
         var apiToken = "3p3FCtslWkFu9iFkAnFjOKRLWZoqAy58iaDldaCZ1M4jNmyVJA0fhkSe5IIv";
         var notifyToken = "sPknBbCd38DZWHhEZ2DyHFdyvgkDwULFl7tefGILMYwOUIaFjhqIsUps3T98";
-        var accountNumber = "9121234567";
+        var accountNumber = "9517585997";
         var bankId = "GCASH";
         var bankOwner = "王小明";
         var orderNo = Guid.NewGuid();        
