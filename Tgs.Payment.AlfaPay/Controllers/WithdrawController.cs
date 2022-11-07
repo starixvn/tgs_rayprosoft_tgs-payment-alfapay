@@ -41,7 +41,7 @@ public class WithdrawController : ControllerBase
         var paymentReturn = new AlfaPayWithdrawReturn()
         {
             TradeNo = withdrawResponse.TradeNo,
-            Amount = withdrawResponse.Amount,
+            Amount = decimal.Parse(withdrawResponse.Amount),
             OutTradeNo = Guid.Parse(withdrawResponse.OutTradeNo),
             State = withdrawResponse.State,
             Sign = withdrawResponse.Sign,

@@ -85,12 +85,12 @@ public class HasherTests
     [Test]
     public void Test_Hash_Withdraw_Real_Sample()
     {
-        var accountNumber = "9517585997";
-        var amount = "120";
+        var accountNumber = "099517585997";
+        var amount = "200";
         var bankId = "GCASH";
-        var bankOwner = "\u738B\u5C0F\u660E";
+        var bankOwner = "¤ý¤p©ú";
         var callBackUrl = "https://dev-payment.rpgp.cc/alfapay/withdraw/callback";
-        var outTradeNo = "04c8ee7d-94b0-468c-b555-1eccce89ecf6";
+        var outTradeNo = "cb9426c9-d6fe-4834-8ef7-9611aa94010a";
         var sign = "603e51a46389f7bfd0d4470e349ab5cb";
 
         var dict = new Dictionary<string, object>
@@ -109,7 +109,7 @@ public class HasherTests
 
         var actual = AlfaPayHasher.ComputeHash(apiToken, notifyToken, AlfaPayPaymentType.Withdraw, dict);
 
-        var expected = "a30da1b60cb168532038db5ba1a90f2d";
+        var expected = "8756aa397416e8424d32ba4316bba405";
 
         Assert.That(actual, Is.EqualTo(expected));
     }
