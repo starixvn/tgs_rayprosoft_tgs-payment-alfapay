@@ -18,12 +18,12 @@ namespace Tgs.Payment.AlfaPay
             if (paymentType == AlfaPayPaymentType.Deposit)
             {
                 sortDict = dict
-                .Where(x => x.Key != "sign" && x.Key != "callback_url")
-                .OrderBy(x => x.Key)
-                .Select(p =>
-                {
-                    return p.Value is null ? $"{p.Key}=" : $"{p.Key}={p.Value}";
-                });
+                    .Where(x => x.Key != "sign" && x.Key != "callback_url")
+                    .OrderBy(x => x.Key)
+                    .Select(p =>
+                    {
+                        return p.Value is null ? $"{p.Key}=" : $"{p.Key}={p.Value}";
+                    });
             }
             else
             {
@@ -32,6 +32,11 @@ namespace Tgs.Payment.AlfaPay
                     .OrderBy(x => x.Key)
                     .Select(p =>
                     {
+                        if (p.Key == "amount")
+                        {                            
+                            return p.Value is null ? $"{p.Key}=" : $"{p.Key}={decimal.Parse(p.Value.ToString()!).Normalize()}";
+                        }
+
                         return p.Value is null ? $"{p.Key}=" : $"{p.Key}={p.Value}";
                     });
             }
