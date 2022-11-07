@@ -33,8 +33,8 @@ namespace Tgs.Payment.AlfaPay
                     .Select(p =>
                     {
                         if (p.Key == "amount")
-                        {                            
-                            return p.Value is null ? $"{p.Key}=" : $"{p.Key}={decimal.Parse(p.Value.ToString()!).Normalize()}";
+                        {
+                            return p.Value is null ? $"{p.Key}=" : $"{p.Key}={decimal.Parse(p.Value.ToString()!):#.##}";
                         }
 
                         return p.Value is null ? $"{p.Key}=" : $"{p.Key}={p.Value}";
