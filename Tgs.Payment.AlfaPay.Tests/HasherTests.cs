@@ -83,7 +83,7 @@ public class HasherTests
     }
 
     [Test]
-    public void Test_Hash_Withdraw_Real_Sample()
+    public void Test_Hash_Call_Client_Withdraw_Real_Sample()
     {
         var accountNumber = "099517585997";
         var amount = "200";
@@ -110,6 +110,34 @@ public class HasherTests
         var actual = AlfaPayHasher.ComputeHash(apiToken, notifyToken, AlfaPayPaymentType.Withdraw, dict);
 
         var expected = "8756aa397416e8424d32ba4316bba405";
+
+        Assert.That(actual, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Test_Hash_Withdraw_Callback_Real_Sample()
+    {
+
+        var tradeNo = "e93bcdee-3747-4bf6-af6f-1e505c95061e";
+        var amount = "200.00";
+        var outTradeNo = "9942663e-fbc6-4753-b672-d2b4b4ad807f";
+        var state = "completed";
+        var sign = "401fa63b599d22fb8fbee22723fdb76e";
+        var dict = new Dictionary<string, object>
+        {
+            { "trade_no", tradeNo },
+            { "amount",amount },            
+            { "out_trade_no", outTradeNo},
+            { "state", state},            
+            { "sign", sign}
+        };
+
+
+        var apiToken = "3p3FCtslWkFu9iFkAnFjOKRLWZoqAy58iaDldaCZ1M4jNmyVJA0fhkSe5IIv";
+        var notifyToken = "sPknBbCd38DZWHhEZ2DyHFdyvgkDwULFl7tefGILMYwOUIaFjhqIsUps3T98";
+        var actual = AlfaPayHasher.ComputeHash(apiToken, notifyToken, AlfaPayPaymentType.Withdraw, dict);
+
+        var expected = sign;
 
         Assert.That(actual, Is.EqualTo(expected));
     }

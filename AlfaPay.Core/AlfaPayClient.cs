@@ -51,6 +51,8 @@ internal class AlfaPayClient
 
         _logger.LogInformation("AlfaPayClient Withdraw apiToken:{apiToken}, notifyToken:{notifyToken},  orderJson:{orderJson}", apiToken, notifyToken, orderJson);
 
+        orderDict["amount"] = decimal.Parse(orderDict["amount"].ToString()!).ToString("#.##");
+
         var sign = AlfaPayHasher.ComputeHash(apiToken, notifyToken, AlfaPayPaymentType.Withdraw, orderDict);
 
         orderDict["sign"] = sign;

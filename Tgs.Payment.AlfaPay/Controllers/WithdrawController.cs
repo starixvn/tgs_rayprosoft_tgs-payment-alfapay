@@ -44,8 +44,7 @@ public class WithdrawController : ControllerBase
             Amount = decimal.Parse(withdrawResponse.Amount),
             OutTradeNo = Guid.Parse(withdrawResponse.OutTradeNo),
             State = withdrawResponse.State,
-            Sign = withdrawResponse.Sign,
-            CallbackUrl = withdrawResponse.CallbackUrl
+            Sign = withdrawResponse.Sign
         };
 
         if (paymentReturn.State is not "completed")
