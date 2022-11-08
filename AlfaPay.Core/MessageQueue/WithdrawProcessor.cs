@@ -1,4 +1,5 @@
-﻿using Google.Protobuf;
+﻿using System.Text.Json;
+using Google.Protobuf;
 using Microsoft.Extensions.Options;
 using Tgs.MessageQueue;
 using Tgs.Payment.Clients;
@@ -40,12 +41,20 @@ internal class WithdrawProcessor : IMessageProcessor
             OutTradeNo = settings.FormId.ToString(),
         };
 
-        var withdrawResponse = await _alfaPayClient
+        var response = await _alfaPayClient
             .WithdrawAsync(settings.ApiToken, settings.NotifyToken, order)
             .ConfigureAwait(false);
 
-        if (withdrawResponse != null && withdrawResponse.Success == true)
+        var jsonDocument = JsonDocument.Parse(response!);
+
+        jsonDocument.RootElement.TryGetProperty("success", out var jsonSuccess);
+
+        var success = jsonSuccess.GetBoolean();
+
+        if (response != null && success == true)
         {
+            var withdrawResponse = JsonSerializer.Deserialize<AlfaPayWithdrawResponse>(response)!;
+
             var applyInfo = new AlfaPayWithdrawApplyInfo(settings, withdrawResponse);
 
             var thirdPartyOrderNo = applyInfo.Response.Data!.TradeNo;
@@ -66,11 +75,9 @@ internal class WithdrawProcessor : IMessageProcessor
         }
         else
         {
-            var response = new AlfaPayWithdrawFailResponse
-            {
-            };
+            var withdrawResponse = JsonSerializer.Deserialize<AlfaPayWithdrawFailResponse>(response!)!;
 
-            var applyInfo = new AlfaPayWithdrawApplyInfo(settings, response);
+            var applyInfo = new AlfaPayWithdrawApplyInfo(settings, withdrawResponse);
 
             var msg = new WithdrawResponse
             {

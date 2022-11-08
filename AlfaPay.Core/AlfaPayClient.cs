@@ -43,7 +43,7 @@ internal class AlfaPayClient
         return JsonSerializer.Deserialize<AlfaPayDepositResponse>(bodyJson);
     }
 
-    public async ValueTask<AlfaPayWithdrawResponse?> WithdrawAsync(string apiToken, string notifyToken, WithdrawOrder order)
+    public async ValueTask<string?> WithdrawAsync(string apiToken, string notifyToken, WithdrawOrder order)
     {
         var orderJson = JsonSerializer.Serialize(order);
         var orderDict = JsonSerializer
@@ -74,6 +74,6 @@ internal class AlfaPayClient
 
         _ = response.EnsureSuccessStatusCode();
 
-        return JsonSerializer.Deserialize<AlfaPayWithdrawResponse>(bodyJson);
+        return bodyJson;
     }
 }

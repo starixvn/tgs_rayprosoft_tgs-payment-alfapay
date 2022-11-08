@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -117,7 +117,6 @@ public class HasherTests
     [Test]
     public void Test_Hash_Withdraw_Callback_Real_Sample()
     {
-
         var tradeNo = "e93bcdee-3747-4bf6-af6f-1e505c95061e";
         var amount = "200.00";
         var outTradeNo = "9942663e-fbc6-4753-b672-d2b4b4ad807f";
@@ -126,12 +125,11 @@ public class HasherTests
         var dict = new Dictionary<string, object>
         {
             { "trade_no", tradeNo },
-            { "amount",amount },            
+            { "amount",amount },
             { "out_trade_no", outTradeNo},
-            { "state", state},            
+            { "state", state},
             { "sign", sign}
         };
-
 
         var apiToken = "3p3FCtslWkFu9iFkAnFjOKRLWZoqAy58iaDldaCZ1M4jNmyVJA0fhkSe5IIv";
         var notifyToken = "sPknBbCd38DZWHhEZ2DyHFdyvgkDwULFl7tefGILMYwOUIaFjhqIsUps3T98";
@@ -140,5 +138,13 @@ public class HasherTests
         var expected = sign;
 
         Assert.That(actual, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Test_Withdraw_Fail()
+    {
+        var json = "{\"success\": false,\"status_code\": 422,\"message\": \"validation error\",\"errors\": {\"out_trade_no\": [\"out trade no 栏位为必填\"]}}";
+        var actual = JsonSerializer.Deserialize<AlfaPayWithdrawFailResponse>(json);
+        Assert.That(actual, Is.Not.Null);
     }
 }
