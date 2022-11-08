@@ -47,9 +47,6 @@ public class WithdrawController : ControllerBase
             Sign = withdrawResponse.Sign
         };
 
-        if (paymentReturn.State is not "completed")
-            return "fail";
-
         var withdrawForm = await getWithdrawFormService
             .GetAsync(new GetWithdrawFormQuery(paymentReturn.OutTradeNo))
             .ConfigureAwait(false);
@@ -73,26 +70,45 @@ public class WithdrawController : ControllerBase
 
         var fsm = paymentServiceClient.CreateWithdrawStateMachine(withdrawForm.Status);
 
-        if (paymentReturn.State == "completed")
+        switch (paymentReturn.State)
         {
-            if (fsm.CanFire(PaymentTrigger.PaymentWithdrawCompleted))
-            {
-                await fsm.FireAsync(PaymentTrigger.PaymentWithdrawCompleted).ConfigureAwait(false);
+            case "completed":
+                if (fsm.CanFire(PaymentTrigger.PaymentWithdrawCompleted))
+                {
+                    await fsm.FireAsync(PaymentTrigger.PaymentWithdrawCompleted).ConfigureAwait(false);
 
-                await paymentServiceClient.SubmitWithdrawFormStatusAsync(
-                    withdrawForm.Id,
-                    paymentReturn: serializer.Serialize(paymentReturn)).ConfigureAwait(false);
-
-                await paymentClient
-                    .PaidWithdrawAsync(
+                    await paymentServiceClient.SubmitWithdrawFormStatusAsync(
                         withdrawForm.Id,
-                        withdrawForm.BrandId,
-                        HttpContext.RequestAborted)
-                    .ConfigureAwait(false);
-            }
+                        paymentReturn: serializer.Serialize(paymentReturn)).ConfigureAwait(false);
+
+                    await paymentClient
+                        .PaidWithdrawAsync(
+                            withdrawForm.Id,
+                            withdrawForm.BrandId,
+                            HttpContext.RequestAborted)
+                        .ConfigureAwait(false);
+                }
+
+                break;
+
+            case "failed":
+                if (fsm.CanFire(PaymentTrigger.Reject))
+                {
+                    await fsm.FireAsync(PaymentTrigger.Reject).ConfigureAwait(false);
+
+                    await paymentServiceClient.SubmitWithdrawFormStatusAsync(
+                        withdrawForm.Id,
+                        paymentReturn: serializer.Serialize(paymentReturn)).ConfigureAwait(false);
+
+                    await paymentClient
+                        .RejectWithdrawAsync(withdrawForm.Id, withdrawForm.BrandId)
+                        .ConfigureAwait(false);
+                }
+
+                break;
         }
 
-        _logger.LogInformation("callback executed");
+        _logger.LogInformation("AlfPay Withdraw callback executed");
 
         return "ok";
     }
