@@ -1,22 +1,25 @@
-﻿using System.Text.Json;
-using Google.Protobuf;
+﻿using Google.Protobuf;
 using Microsoft.Extensions.Options;
 using Tgs.MessageQueue;
+using Tgs.Payment.Clients;
 using Tgs.Payment.Protos;
 
 namespace Tgs.Payment.AlfaPay.MessageQueue;
 
 internal class DepositProcessor : IMessageProcessor
 {
+    private readonly IPaymentClient _paymentClient;
     private readonly AlfaPayClient _alfaPayClient;
     private readonly AlfaPaySerializer _alfaPaySerializer;
     private readonly AlfaPayOptions _options;
 
     public DepositProcessor(
+        IPaymentClient paymentClient,
         AlfaPayClient alfaPayClient,
         AlfaPaySerializer alfaPaySerializer,
         IOptions<AlfaPayOptions> optionsAccessor)
     {
+        _paymentClient = paymentClient ?? throw new ArgumentNullException(nameof(paymentClient));
         _alfaPayClient = alfaPayClient ?? throw new ArgumentNullException(nameof(alfaPayClient));
         _alfaPaySerializer = alfaPaySerializer ?? throw new ArgumentNullException(nameof(alfaPaySerializer));
         _options = optionsAccessor.Value;
@@ -42,6 +45,12 @@ internal class DepositProcessor : IMessageProcessor
         if (depositResponse != null && depositResponse.Success == true)
         {
             var applyInfo = new AlfaPayDepositApplyInfo(settings, depositResponse);
+
+            await _paymentClient.ScheduleAsync(
+                "tgs.payment.alfapay.deposit.schedule.reject",
+                settings.OrderNo,
+                DateTime.UtcNow.AddMinutes(15D).ToUniversalTime(),
+                cancellationToken).ConfigureAwait(false);
 
             var msg = new DepositResponse
             {
