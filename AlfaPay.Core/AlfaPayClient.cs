@@ -43,6 +43,34 @@ internal class AlfaPayClient
         return JsonSerializer.Deserialize<AlfaPayDepositResponse>(bodyJson);
     }
 
+    public async ValueTask<AlfaPayClientDepositInfo?> QueryDepositFormAsync(string apiToken, Guid outTradeNo)
+    {
+        _logger.LogInformation("AlfaPayClient QueryDepositForm apiToken:{apiToken}, outTradeNo:{outTradeNo}", apiToken, outTradeNo);
+
+        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiToken);
+
+        var request = new HttpRequestMessage
+        {
+            Method = HttpMethod.Get,
+            RequestUri = new Uri($"/api/transaction/{outTradeNo}"),
+            Content = new StringContent("")
+        };
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+        var response = await _httpClient
+            .SendAsync(request)
+            .ConfigureAwait(false);
+
+        var bodyJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+        _logger.LogInformation("AlfaPay QueryDepositForm Body:{bodyJson}", bodyJson);
+
+        _ = response.EnsureSuccessStatusCode();
+
+        return JsonSerializer.Deserialize<AlfaPayClientDepositInfo>(bodyJson);
+    }
+
     public async ValueTask<string?> WithdrawAsync(string apiToken, string notifyToken, WithdrawOrder order)
     {
         var orderJson = JsonSerializer.Serialize(order);
@@ -75,5 +103,5 @@ internal class AlfaPayClient
         _ = response.EnsureSuccessStatusCode();
 
         return bodyJson;
-    }
+    }    
 }
