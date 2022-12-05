@@ -62,6 +62,8 @@ internal class AlfaPayClient
             .SendAsync(request)
             .ConfigureAwait(false);
 
+        _logger.LogInformation("QueryDepositFormAsync BaseAddress:{_httpClient.BaseAddress}", _httpClient.BaseAddress);
+
         var bodyJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
         _logger.LogInformation("AlfaPay QueryDepositForm Body:{bodyJson}", bodyJson);
