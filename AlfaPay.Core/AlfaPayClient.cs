@@ -50,19 +50,9 @@ internal class AlfaPayClient
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiToken);
 
-        var request = new HttpRequestMessage
-        {
-            Method = HttpMethod.Get,
-            RequestUri = new Uri($"/api/transaction/{outTradeNo}"),
-            Content = new StringContent("")
-        };
-        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
         var response = await _httpClient
-            .SendAsync(request)
+            .GetAsync($"/api/transaction/{outTradeNo}")
             .ConfigureAwait(false);
-
-        _logger.LogInformation("QueryDepositFormAsync BaseAddress:{_httpClient.BaseAddress}", _httpClient.BaseAddress);
 
         var bodyJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
@@ -105,5 +95,5 @@ internal class AlfaPayClient
         _ = response.EnsureSuccessStatusCode();
 
         return bodyJson;
-    }    
+    }
 }
