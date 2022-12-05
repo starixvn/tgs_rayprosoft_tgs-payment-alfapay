@@ -2,31 +2,31 @@
 
 namespace Tgs.Payment.AlfaPay;
 
-internal record AlfaPayDepositInfoData
+internal record AlfaPayDepositInfoData(Guid TradeNo, string OutTradeNo, string Amount, decimal RequestAmount, string State)
 {
     /// <summary>
     /// 平台订单号
     /// </summary>
     [JsonPropertyName("trade_no")]
-    public Guid TradeNo { get; init; }
+    public Guid TradeNo { get; init; } = TradeNo;
 
     /// <summary>
     /// 商户订单号
     /// </summary>
     [JsonPropertyName("out_trade_no")]
-    public string OutTradeNo { get; init; } = default!;
+    public string OutTradeNo { get; init; } = OutTradeNo;
 
     /// <summary>
     /// 实际支付金额
     /// </summary>
     [JsonPropertyName("amount")]
-    public string Amount { get; init; } = default!;
+    public string Amount { get; init; } = Amount;
 
     /// <summary>
     /// 请求支付金额
     /// </summary>
     [JsonPropertyName("request_amount")]
-    public decimal RequestAmount { get; init; }
+    public decimal RequestAmount { get; init; } = RequestAmount;
 
     /// <summary>
     /// 状态码<br/>
@@ -40,5 +40,5 @@ internal record AlfaPayDepositInfoData
     /// timeout => 逾時
     /// </summary>
     [JsonPropertyName("state")]
-    public string State { get; init; } = default!;
+    public string State { get; init; } = State;
 }
