@@ -9,14 +9,14 @@ internal class DepositTimeoutHandler : IMessageHandler
 {
     private readonly IPaymentServiceClient _paymentServiceClient;
     private readonly IPaymentClient _paymentClient;
-    private readonly AlfaPayClient _alfaPayClient;
+    private readonly IAlfaPayClient _alfaPayClient;
     private readonly AlfaPaySerializer _alfaPaySerializer;
     private readonly ILogger<DepositTimeoutHandler> _logger;
 
     public DepositTimeoutHandler(
         IPaymentServiceClient paymentServiceClient,
         IPaymentClient paymentClient,
-        AlfaPayClient alfaPayClient,
+        IAlfaPayClient alfaPayClient,
         AlfaPaySerializer alfaPaySerializer,
         ILogger<DepositTimeoutHandler> logger)
     {

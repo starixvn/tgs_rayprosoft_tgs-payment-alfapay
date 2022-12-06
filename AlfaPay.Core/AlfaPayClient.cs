@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Tgs.Payment.AlfaPay;
 
-internal class AlfaPayClient
+internal class AlfaPayClient : IAlfaPayClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<AlfaPayClient> _logger;
