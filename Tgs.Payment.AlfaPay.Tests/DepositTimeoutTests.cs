@@ -1,0 +1,122 @@
+﻿using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
+using Microsoft.Extensions.Logging.Abstractions;
+using NSubstitute;
+using Tgs.Payment.AlfaPay;
+using Tgs.Payment.AlfaPay.MessageQueue;
+using Tgs.Payment.Clients;
+using Tgs.Payment.Protos;
+
+namespace AlfaPay.Core.UnitTests
+{
+    public class DepositTimeoutTests
+    {
+        [Test]
+        public async Task When_Query_AlfPay_Deposit_Form_State_Is_Timeout_Will_Reject_Deposit_Form()
+        {
+            var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
+            var fakePaymentClient = Substitute.For<IPaymentClient>();
+            var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
+            var alfaPaySerializer = new AlfaPaySerializer();
+            var fakeLogger = new NullLogger<DepositTimeoutHandler>();
+
+            var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
+
+            var formId = Guid.NewGuid();
+            var brandId = Guid.NewGuid();
+            var apiToken = "apiToken";
+
+            var depositFormInfo = new DepositFormInfo
+            {
+                Id = formId,
+                BrandId = brandId,
+                Status = PaymentFlowState.WaitPayment,
+                ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
+                    new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
+                    new AlfaPayDepositResponse()))
+            };
+
+            _ = fakePaymentServiceClient
+                .GetDepositFormAsync(formId)
+                .Returns(depositFormInfo);
+
+            var alfaPayDepositInfoData = new AlfaPayDepositInfoData(
+                Guid.Parse("5d6a00ef-798c-4f53-927c-10295e658b6a"),
+                formId.ToString(),
+                "1680.00",
+                1680M,
+                "timeout");
+
+            _ = fakeAlfaPayClient
+                .QueryDepositFormAsync(apiToken, formId)
+                .Returns(new AlfaPayClientDepositInfo(true, alfaPayDepositInfoData));
+
+            var request = new ScheduleRequest
+            {
+                Subject = "tgs.payment.alfapay.deposit.schedule.reject",
+                FormId = formId,
+                ScheduleTime = DateTime.UtcNow.AddMinutes(15D).ToUniversalTime().ToTimestamp(),
+            };
+
+            await sut.HandleAsync(request.ToByteArray());
+
+            _ = fakePaymentClient.Received(1).RejectDepositAsync(formId, brandId);
+        }
+
+        [Test]
+        public async Task When_Query_AlfPay_Deposit_Form_State_Is_Processing_Will_Still_Schedule()
+        {
+            var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
+            var fakePaymentClient = Substitute.For<IPaymentClient>();
+            var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
+            var alfaPaySerializer = new AlfaPaySerializer();
+            var fakeLogger = new NullLogger<DepositTimeoutHandler>();
+
+            var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
+
+            var formId = Guid.NewGuid();
+            var brandId = Guid.NewGuid();
+            var apiToken = "apiToken";
+
+            var depositFormInfo = new DepositFormInfo
+            {
+                Id = formId,
+                BrandId = brandId,
+                Status = PaymentFlowState.WaitPayment,
+                ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
+                    new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
+                    new AlfaPayDepositResponse()))
+            };
+
+            _ = fakePaymentServiceClient
+                .GetDepositFormAsync(formId)
+                .Returns(depositFormInfo);
+
+            var alfaPayDepositInfoData = new AlfaPayDepositInfoData(
+                Guid.Parse("5d6a00ef-798c-4f53-927c-10295e658b6a"),
+                formId.ToString(),
+                "1680.00",
+                1680M,
+                "processing");
+
+            _ = fakeAlfaPayClient
+                .QueryDepositFormAsync(apiToken, formId)
+                .Returns(new AlfaPayClientDepositInfo(true, alfaPayDepositInfoData));
+
+            var subject = "tgs.payment.alfapay.deposit.schedule.reject";
+
+            var request = new ScheduleRequest
+            {
+                Subject = subject,
+                FormId = formId,
+                ScheduleTime = DateTime.UtcNow.AddMinutes(15D).ToUniversalTime().ToTimestamp(),
+            };
+
+            await sut.HandleAsync(request.ToByteArray());
+
+            _ = fakePaymentClient
+                .Received(1)
+                .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
+        }
+    }
+}
