@@ -15,7 +15,7 @@ public static class ServiceCollectionExtensions
             .AddOptions<AlfaPayOptions>()
             .Configure(configure)
             .Services
-            .AddHttpClient<AlfaPayClient>()
+            .AddHttpClient<IAlfaPayClient, AlfaPayClient>()
             .ConfigureHttpClient((sp, httpClient) =>
             {
                 var options = sp.GetRequiredService<IOptions<AlfaPayOptions>>().Value;
