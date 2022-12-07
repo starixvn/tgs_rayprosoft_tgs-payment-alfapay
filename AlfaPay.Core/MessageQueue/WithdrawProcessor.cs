@@ -9,13 +9,13 @@ namespace Tgs.Payment.AlfaPay.MessageQueue;
 
 internal class WithdrawProcessor : IMessageProcessor
 {
-    private readonly AlfaPayClient _alfaPayClient;
+    private readonly IAlfaPayClient _alfaPayClient;
     private readonly AlfaPaySerializer _alfaPaySerializer;
     private readonly IPaymentClient _paymentClient;
     private readonly AlfaPayOptions _options;
 
     public WithdrawProcessor(
-        AlfaPayClient alfaPayClient,
+        IAlfaPayClient alfaPayClient,
         AlfaPaySerializer alfaPaySerializer,
         IOptions<AlfaPayOptions> optionsAccessor,
         IPaymentClient paymentClient)
