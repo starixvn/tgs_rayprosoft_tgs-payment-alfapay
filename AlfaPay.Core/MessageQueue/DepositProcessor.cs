@@ -9,13 +9,13 @@ namespace Tgs.Payment.AlfaPay.MessageQueue;
 internal class DepositProcessor : IMessageProcessor
 {
     private readonly IPaymentClient _paymentClient;
-    private readonly AlfaPayClient _alfaPayClient;
+    private readonly IAlfaPayClient _alfaPayClient;
     private readonly AlfaPaySerializer _alfaPaySerializer;
     private readonly AlfaPayOptions _options;
 
     public DepositProcessor(
         IPaymentClient paymentClient,
-        AlfaPayClient alfaPayClient,
+        IAlfaPayClient alfaPayClient,
         AlfaPaySerializer alfaPaySerializer,
         IOptions<AlfaPayOptions> optionsAccessor)
     {
