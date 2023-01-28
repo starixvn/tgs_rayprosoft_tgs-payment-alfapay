@@ -30,7 +30,7 @@ public class AlfaPayHasher
                         : $"{p.Key}={decimal.Parse(p.Value.ToString()!)}"
                     : p.Value is null
                         ? $"{p.Key}="
-                        : $"{p.Key}={p.Value}");
+                        : $"{p.Key}={p.Value.ToString()?.Trim()}");
         var content = string.Join("&", sortDict);
 
         var plainText = $"{content}{apiToken}{notifyToken}";

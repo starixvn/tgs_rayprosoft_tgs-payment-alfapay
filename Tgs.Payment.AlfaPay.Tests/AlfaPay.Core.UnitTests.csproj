@@ -30,4 +30,8 @@
     <None Include="D:\Users\Phoenix\source\repos\tgs-payment-alfapay\Tgs.Payment.AlfaPay.Tests\.editorconfig" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
 </Project>
