@@ -7,252 +7,250 @@ using Tgs.Payment.AlfaPay.MessageQueue;
 using Tgs.Payment.Clients;
 using Tgs.Payment.Protos;
 
-namespace AlfaPay.Core.UnitTests
+namespace AlfaPay.Core.UnitTests;
+
+public class DepositTimeoutTests
 {
-    public class DepositTimeoutTests
+    [Test]
+    public async Task 當AlfaPay代收接口查詢回傳狀態是timeout時若GMS存款單仍在等待付款時將會拒絕存款單()
     {
-        [Test]
-        public async Task 當AlfaPay代收接口查詢回傳狀態是timeout時若GMS存款單仍在等待付款時將會拒絕存款單()
+        var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
+        var fakePaymentClient = Substitute.For<IPaymentClient>();
+        var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
+        var alfaPaySerializer = new AlfaPaySerializer();
+        var fakeLogger = new NullLogger<DepositTimeoutHandler>();
+
+        var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
+
+        var formId = Guid.NewGuid();
+        var brandId = Guid.NewGuid();
+        var apiToken = "apiToken";
+
+        var depositFormInfo = new DepositFormInfo
         {
-            var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
-            var fakePaymentClient = Substitute.For<IPaymentClient>();
-            var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
-            var alfaPaySerializer = new AlfaPaySerializer();
-            var fakeLogger = new NullLogger<DepositTimeoutHandler>();
+            Id = formId,
+            BrandId = brandId,
+            Status = PaymentFlowState.WaitPayment,
+            ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
+                new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
+                new AlfaPayDepositResponse()))
+        };
 
-            var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
+        _ = fakePaymentServiceClient
+            .GetDepositFormAsync(formId)
+            .Returns(depositFormInfo);
 
-            var formId = Guid.NewGuid();
-            var brandId = Guid.NewGuid();
-            var apiToken = "apiToken";
+        var alfaPayDepositInfoData = new AlfaPayDepositInfoData(
+            Guid.Parse("5d6a00ef-798c-4f53-927c-10295e658b6a"),
+            formId.ToString(),
+            "1680.00",
+            1680M,
+            "timeout");
 
-            var depositFormInfo = new DepositFormInfo
-            {
-                Id = formId,
-                BrandId = brandId,
-                Status = PaymentFlowState.WaitPayment,
-                ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
-                    new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
-                    new AlfaPayDepositResponse()))
-            };
+        _ = fakeAlfaPayClient
+            .QueryDepositFormAsync(apiToken, formId)
+            .Returns(new AlfaPayClientDepositInfo(true, alfaPayDepositInfoData));
 
-            _ = fakePaymentServiceClient
-                .GetDepositFormAsync(formId)
-                .Returns(depositFormInfo);
-
-            var alfaPayDepositInfoData = new AlfaPayDepositInfoData(
-                Guid.Parse("5d6a00ef-798c-4f53-927c-10295e658b6a"),
-                formId.ToString(),
-                "1680.00",
-                1680M,
-                "timeout");
-
-            _ = fakeAlfaPayClient
-                .QueryDepositFormAsync(apiToken, formId)
-                .Returns(new AlfaPayClientDepositInfo(true, alfaPayDepositInfoData));
-
-            var request = new ScheduleRequest
-            {
-                Subject = "tgs.payment.alfapay.deposit.schedule.reject",
-                FormId = formId,
-                ScheduleTime = DateTime.UtcNow.ToTimestamp(),
-            };
-
-            await sut.HandleAsync(request.ToByteArray());
-
-            _ = fakePaymentClient.Received(1).RejectDepositAsync(formId, brandId);
-        }
-
-        [Test]
-        public async Task 當AlfaPay代收接口查詢回傳狀態是processing時若GMS存款單狀態仍在等待付款時將會重新計時()
+        var request = new ScheduleRequest
         {
-            var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
-            var fakePaymentClient = Substitute.For<IPaymentClient>();
-            var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
-            var alfaPaySerializer = new AlfaPaySerializer();
-            var fakeLogger = new NullLogger<DepositTimeoutHandler>();
+            Subject = "tgs.payment.alfapay.deposit.schedule.reject",
+            FormId = formId,
+            ScheduleTime = DateTime.UtcNow.ToTimestamp(),
+        };
 
-            var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
+        await sut.HandleAsync(request.ToByteArray());
 
-            var formId = Guid.NewGuid();
-            var brandId = Guid.NewGuid();
-            var apiToken = "apiToken";
+        _ = fakePaymentClient.Received(1).RejectDepositAsync(formId, brandId);
+    }
 
-            var depositFormInfo = new DepositFormInfo
-            {
-                Id = formId,
-                BrandId = brandId,
-                Status = PaymentFlowState.WaitPayment,
-                ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
-                    new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
-                    new AlfaPayDepositResponse()))
-            };
+    [Test]
+    public async Task 當AlfaPay代收接口查詢回傳狀態是processing時若GMS存款單狀態仍在等待付款時將會重新計時()
+    {
+        var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
+        var fakePaymentClient = Substitute.For<IPaymentClient>();
+        var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
+        var alfaPaySerializer = new AlfaPaySerializer();
+        var fakeLogger = new NullLogger<DepositTimeoutHandler>();
 
-            _ = fakePaymentServiceClient
-                .GetDepositFormAsync(formId)
-                .Returns(depositFormInfo);
+        var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
 
-            var alfaPayDepositInfoData = new AlfaPayDepositInfoData(
-                Guid.Parse("5d6a00ef-798c-4f53-927c-10295e658b6a"),
-                formId.ToString(),
-                "1680.00",
-                1680M,
-                "processing");
+        var formId = Guid.NewGuid();
+        var brandId = Guid.NewGuid();
+        var apiToken = "apiToken";
 
-            _ = fakeAlfaPayClient
-                .QueryDepositFormAsync(apiToken, formId)
-                .Returns(new AlfaPayClientDepositInfo(true, alfaPayDepositInfoData));
-
-            var subject = "tgs.payment.alfapay.deposit.schedule.reject";
-
-            var request = new ScheduleRequest
-            {
-                Subject = subject,
-                FormId = formId,
-                ScheduleTime = DateTime.UtcNow.ToTimestamp(),
-            };
-
-            await sut.HandleAsync(request.ToByteArray());
-
-            _ = fakePaymentClient
-                .Received(1)
-                .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
-        }
-
-
-        [Test]
-        public async Task 若GMS存款單狀態為Reject將不繼續執行()
+        var depositFormInfo = new DepositFormInfo
         {
-            var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
-            var fakePaymentClient = Substitute.For<IPaymentClient>();
-            var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
-            var alfaPaySerializer = new AlfaPaySerializer();
-            var fakeLogger = new NullLogger<DepositTimeoutHandler>();
+            Id = formId,
+            BrandId = brandId,
+            Status = PaymentFlowState.WaitPayment,
+            ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
+                new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
+                new AlfaPayDepositResponse()))
+        };
 
-            var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
+        _ = fakePaymentServiceClient
+            .GetDepositFormAsync(formId)
+            .Returns(depositFormInfo);
 
-            var formId = Guid.NewGuid();
-            var brandId = Guid.NewGuid();
-            var apiToken = "apiToken";
+        var alfaPayDepositInfoData = new AlfaPayDepositInfoData(
+            Guid.Parse("5d6a00ef-798c-4f53-927c-10295e658b6a"),
+            formId.ToString(),
+            "1680.00",
+            1680M,
+            "processing");
 
-            var depositFormInfo = new DepositFormInfo
-            {
-                Id = formId,
-                BrandId = brandId,
-                Status = PaymentFlowState.Reject,
-                ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
-                    new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
-                    new AlfaPayDepositResponse()))
-            };
+        _ = fakeAlfaPayClient
+            .QueryDepositFormAsync(apiToken, formId)
+            .Returns(new AlfaPayClientDepositInfo(true, alfaPayDepositInfoData));
 
-            _ = fakePaymentServiceClient
-                .GetDepositFormAsync(formId)
-                .Returns(depositFormInfo);
-            
-            var subject = "tgs.payment.alfapay.deposit.schedule.reject";
+        var subject = "tgs.payment.alfapay.deposit.schedule.reject";
 
-            var request = new ScheduleRequest
-            {
-                Subject = subject,
-                FormId = formId,
-                ScheduleTime = DateTime.UtcNow.ToTimestamp(),
-            };
-
-            await sut.HandleAsync(request.ToByteArray());
-
-            _ = fakePaymentClient
-                .Received(0)
-                .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
-        }
-
-        [Test]
-        public async Task 若GMS存款單狀態為Approved將不繼續執行()
+        var request = new ScheduleRequest
         {
-            var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
-            var fakePaymentClient = Substitute.For<IPaymentClient>();
-            var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
-            var alfaPaySerializer = new AlfaPaySerializer();
-            var fakeLogger = new NullLogger<DepositTimeoutHandler>();
+            Subject = subject,
+            FormId = formId,
+            ScheduleTime = DateTime.UtcNow.ToTimestamp(),
+        };
 
-            var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
+        await sut.HandleAsync(request.ToByteArray());
 
-            var formId = Guid.NewGuid();
-            var brandId = Guid.NewGuid();
-            var apiToken = "apiToken";
+        _ = fakePaymentClient
+            .Received(1)
+            .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
+    }
 
-            var depositFormInfo = new DepositFormInfo
-            {
-                Id = formId,
-                BrandId = brandId,
-                Status = PaymentFlowState.Approved,
-                ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
-                    new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
-                    new AlfaPayDepositResponse()))
-            };
+    [Test]
+    public async Task 若GMS存款單狀態為Reject將不繼續執行()
+    {
+        var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
+        var fakePaymentClient = Substitute.For<IPaymentClient>();
+        var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
+        var alfaPaySerializer = new AlfaPaySerializer();
+        var fakeLogger = new NullLogger<DepositTimeoutHandler>();
 
-            _ = fakePaymentServiceClient
-                .GetDepositFormAsync(formId)
-                .Returns(depositFormInfo);
+        var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
 
-            var subject = "tgs.payment.alfapay.deposit.schedule.reject";
+        var formId = Guid.NewGuid();
+        var brandId = Guid.NewGuid();
+        var apiToken = "apiToken";
 
-            var request = new ScheduleRequest
-            {
-                Subject = subject,
-                FormId = formId,
-                ScheduleTime = DateTime.UtcNow.ToTimestamp(),
-            };
-
-            await sut.HandleAsync(request.ToByteArray());
-
-            _ = fakePaymentClient
-                .Received(0)
-                .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
-        }
-
-        [Test]
-        public async Task 若GMS存款單狀態為Paid將不繼續執行()
+        var depositFormInfo = new DepositFormInfo
         {
-            var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
-            var fakePaymentClient = Substitute.For<IPaymentClient>();
-            var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
-            var alfaPaySerializer = new AlfaPaySerializer();
-            var fakeLogger = new NullLogger<DepositTimeoutHandler>();
+            Id = formId,
+            BrandId = brandId,
+            Status = PaymentFlowState.Reject,
+            ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
+                new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
+                new AlfaPayDepositResponse()))
+        };
 
-            var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
+        _ = fakePaymentServiceClient
+            .GetDepositFormAsync(formId)
+            .Returns(depositFormInfo);
 
-            var formId = Guid.NewGuid();
-            var brandId = Guid.NewGuid();
-            var apiToken = "apiToken";
+        var subject = "tgs.payment.alfapay.deposit.schedule.reject";
 
-            var depositFormInfo = new DepositFormInfo
-            {
-                Id = formId,
-                BrandId = brandId,
-                Status = PaymentFlowState.Paid,
-                ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
-                    new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
-                    new AlfaPayDepositResponse()))
-            };
+        var request = new ScheduleRequest
+        {
+            Subject = subject,
+            FormId = formId,
+            ScheduleTime = DateTime.UtcNow.ToTimestamp(),
+        };
 
-            _ = fakePaymentServiceClient
-                .GetDepositFormAsync(formId)
-                .Returns(depositFormInfo);
+        await sut.HandleAsync(request.ToByteArray());
 
-            var subject = "tgs.payment.alfapay.deposit.schedule.reject";
+        _ = fakePaymentClient
+            .Received(0)
+            .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
+    }
 
-            var request = new ScheduleRequest
-            {
-                Subject = subject,
-                FormId = formId,
-                ScheduleTime = DateTime.UtcNow.ToTimestamp(),
-            };
+    [Test]
+    public async Task 若GMS存款單狀態為Approved將不繼續執行()
+    {
+        var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
+        var fakePaymentClient = Substitute.For<IPaymentClient>();
+        var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
+        var alfaPaySerializer = new AlfaPaySerializer();
+        var fakeLogger = new NullLogger<DepositTimeoutHandler>();
 
-            await sut.HandleAsync(request.ToByteArray());
+        var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
 
-            _ = fakePaymentClient
-                .Received(0)
-                .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
-        }
+        var formId = Guid.NewGuid();
+        var brandId = Guid.NewGuid();
+        var apiToken = "apiToken";
+
+        var depositFormInfo = new DepositFormInfo
+        {
+            Id = formId,
+            BrandId = brandId,
+            Status = PaymentFlowState.Approved,
+            ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
+                new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
+                new AlfaPayDepositResponse()))
+        };
+
+        _ = fakePaymentServiceClient
+            .GetDepositFormAsync(formId)
+            .Returns(depositFormInfo);
+
+        var subject = "tgs.payment.alfapay.deposit.schedule.reject";
+
+        var request = new ScheduleRequest
+        {
+            Subject = subject,
+            FormId = formId,
+            ScheduleTime = DateTime.UtcNow.ToTimestamp(),
+        };
+
+        await sut.HandleAsync(request.ToByteArray());
+
+        _ = fakePaymentClient
+            .Received(0)
+            .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
+    }
+
+    [Test]
+    public async Task 若GMS存款單狀態為Paid將不繼續執行()
+    {
+        var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
+        var fakePaymentClient = Substitute.For<IPaymentClient>();
+        var fakeAlfaPayClient = Substitute.For<IAlfaPayClient>();
+        var alfaPaySerializer = new AlfaPaySerializer();
+        var fakeLogger = new NullLogger<DepositTimeoutHandler>();
+
+        var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, alfaPaySerializer, fakeLogger);
+
+        var formId = Guid.NewGuid();
+        var brandId = Guid.NewGuid();
+        var apiToken = "apiToken";
+
+        var depositFormInfo = new DepositFormInfo
+        {
+            Id = formId,
+            BrandId = brandId,
+            Status = PaymentFlowState.Paid,
+            ApplyInfo = alfaPaySerializer.Serialize(new AlfaPayDepositApplyInfo(
+                new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
+                new AlfaPayDepositResponse()))
+        };
+
+        _ = fakePaymentServiceClient
+            .GetDepositFormAsync(formId)
+            .Returns(depositFormInfo);
+
+        var subject = "tgs.payment.alfapay.deposit.schedule.reject";
+
+        var request = new ScheduleRequest
+        {
+            Subject = subject,
+            FormId = formId,
+            ScheduleTime = DateTime.UtcNow.ToTimestamp(),
+        };
+
+        await sut.HandleAsync(request.ToByteArray());
+
+        _ = fakePaymentClient
+            .Received(0)
+            .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
     }
 }
