@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
+﻿using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Tgs.Payment.AlfaPay;
@@ -30,18 +25,18 @@ internal class Demo : BackgroundService
         await WithdrawAsync();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:刪除未使用的私用成員", Justification = "<暫止>")]
     private async Task DepoistAsync()
     {
         var apiToken = "sUxtpDWiNoqUxKfqJoHCL69TS4omJRB1fBoaw4PfJT4Boncf8cLj6lYtN5DS";
         var notitfyToken = "NotifyToken";
         var orderNo = Guid.NewGuid();
-        var amount = 500.00m;        
-
+        var amount = 500.00m;
 
         var depositSettings = new AlfaPayDepositSettings(
             apiToken,
             notitfyToken,
-            orderNo,            
+            orderNo,
             PaidName: null);
         try
         {
@@ -58,13 +53,13 @@ internal class Demo : BackgroundService
     }
 
     private async Task WithdrawAsync()
-    {        
+    {
         var apiToken = "3p3FCtslWkFu9iFkAnFjOKRLWZoqAy58iaDldaCZ1M4jNmyVJA0fhkSe5IIv";
         var notifyToken = "sPknBbCd38DZWHhEZ2DyHFdyvgkDwULFl7tefGILMYwOUIaFjhqIsUps3T98";
         var accountNumber = "9517585997";
         var bankId = "GCASH";
         var bankOwner = "王小明";
-        var orderNo = Guid.NewGuid();        
+        var orderNo = Guid.NewGuid();
         var amount = 100M;
 
         var withdrawSettings = new AlfaPayWithdrawSettings(

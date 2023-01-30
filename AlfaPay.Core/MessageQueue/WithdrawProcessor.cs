@@ -47,7 +47,7 @@ internal class WithdrawProcessor : IMessageProcessor
 
         var jsonDocument = JsonDocument.Parse(response!);
 
-        jsonDocument.RootElement.TryGetProperty("success", out var jsonSuccess);
+        _ = jsonDocument.RootElement.TryGetProperty("success", out var jsonSuccess);
 
         var success = jsonSuccess.GetBoolean();
 

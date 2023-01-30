@@ -22,4 +22,16 @@
     <ProjectReference Include="..\AlfaPay.Core\AlfaPay.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EditorConfigFiles Remove="D:\Users\Phoenix\source\repos\tgs-payment-alfapay\Tgs.Payment.AlfaPay.Tests\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="D:\Users\Phoenix\source\repos\tgs-payment-alfapay\Tgs.Payment.AlfaPay.Tests\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
 </Project>

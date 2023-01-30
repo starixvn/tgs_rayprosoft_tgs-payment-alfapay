@@ -39,6 +39,38 @@ public class HasherTests
     }
 
     [Test]
+    public void Withdraw_資料中有空白_應該Trim再運算()
+    {
+        var accountNumber = "6212262000000000001";
+        var amount = "500";
+        var bankId = "GCASH";
+        var bankOwner = "DAO VAN THANG ";
+        var callBackUrl = "https://www.example.com/notify";
+        var outTradeNo = "2aff3561-cac7-4643-ab93-ed62cf228d70";
+        var sign = "603e51a46389f7bfd0d4470e349ab5cb";
+
+        var dict = new Dictionary<string, object>
+        {
+            { "account_number",accountNumber },
+            { "amount",amount },
+            { "bank_id",bankId},
+            { "bank_owner", bankOwner},
+            { "callback_url", callBackUrl},
+            { "out_trade_no", outTradeNo},
+            { "sign", sign}
+        };
+
+        var apiToken = "api_token";
+        var notifyToken = "notify_token";
+
+        var actual = AlfaPayHasher.ComputeHash(apiToken, notifyToken, AlfaPayPaymentType.Withdraw, dict);
+
+        var expected = "603e51a46389f7bfd0d4470e349ab5cb";
+
+        Assert.That(actual, Is.EqualTo(expected));
+    }
+
+    [Test]
     public void Test_Hash_Deposit_Callback()
     {
         var json = "{\"trade_no\":\"d835f6c0-9881-453f-ad04-d963cae3698c\",\"amount\":\"580.00\",\"request_amount\":\"580\",\"out_trade_no\":\"5993ee9d-4712-4cc6-acc4-45f575189657\",\"state\":\"completed\",\"callback_url\":\"https://example.com/notify\",\"sign\":\"1ed30abda08395adb9cacabca1d669ad\"}";
