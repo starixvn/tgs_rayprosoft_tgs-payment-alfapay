@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using Google.Protobuf;
+﻿using Google.Protobuf;
 using Microsoft.Extensions.Options;
 using Tgs.MessageQueue;
 using Tgs.Payment.Clients;
@@ -45,46 +44,22 @@ internal class WithdrawProcessor : IMessageProcessor
             .WithdrawAsync(settings.ApiToken, settings.NotifyToken, order)
             .ConfigureAwait(false);
 
-        var jsonDocument = JsonDocument.Parse(response!);
+        var applyInfo = new AlfaPayWithdrawApplyInfo(settings, response);
 
-        _ = jsonDocument.RootElement.TryGetProperty("success", out var jsonSuccess);
+        var thirdPartyOrderNo = applyInfo.Response.Data!.TradeNo;
 
-        var success = jsonSuccess.GetBoolean();
-
-        if (response != null && success == true)
-        {
-            var withdrawResponse = JsonSerializer.Deserialize<AlfaPayWithdrawResponse>(response)!;
-
-            var applyInfo = new AlfaPayWithdrawApplyInfo(settings, withdrawResponse);
-
-            var thirdPartyOrderNo = applyInfo.Response.Data!.TradeNo;
-
-            await _paymentClient
+        await _paymentClient
             .SaveWithdrawFormThirdPartyOrderNoAsync(
                 settings.FormId,
                 thirdPartyOrderNo,
                 cancellationToken)
             .ConfigureAwait(false);
 
-            var msg = new WithdrawResponse
-            {
-                Result = _alfaPaySerializer.Serialize(applyInfo)
-            };
-
-            return msg.ToByteArray();
-        }
-        else
+        var msg = new WithdrawResponse
         {
-            var withdrawResponse = JsonSerializer.Deserialize<AlfaPayWithdrawFailResponse>(response!)!;
+            Result = _alfaPaySerializer.Serialize(applyInfo)
+        };
 
-            var applyInfo = new AlfaPayWithdrawApplyInfo(settings, withdrawResponse);
-
-            var msg = new WithdrawResponse
-            {
-                Result = _alfaPaySerializer.Serialize(applyInfo)
-            };
-
-            return msg.ToByteArray();
-        }
+        return msg.ToByteArray();
     }
 }

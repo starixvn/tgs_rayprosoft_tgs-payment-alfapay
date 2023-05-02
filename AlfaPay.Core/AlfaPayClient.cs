@@ -23,7 +23,7 @@ internal class AlfaPayClient : IAlfaPayClient
         var orderDict = JsonSerializer
             .Deserialize<Dictionary<string, object>>(orderJson)!;
 
-        _logger.LogInformation("AlfaPayClient Deposit apiToken:{apiToken}, orderJson:{orderJson}", apiToken, orderJson);
+        _logger.LogInformation("AlfaPayClient Deposit request apiToken:{apiToken}, orderJson:{orderJson}", apiToken, orderJson);
 
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiToken);
@@ -36,7 +36,7 @@ internal class AlfaPayClient : IAlfaPayClient
 
         var bodyJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-        _logger.LogInformation("AlfaPay Deposit Body:{bodyJson}", bodyJson);
+        _logger.LogInformation("AlfaPayClient Deposit response Body:{bodyJson}", bodyJson);
 
         _ = response.EnsureSuccessStatusCode();
 
@@ -45,7 +45,7 @@ internal class AlfaPayClient : IAlfaPayClient
 
     public async ValueTask<AlfaPayClientDepositInfo?> QueryDepositFormAsync(string apiToken, Guid outTradeNo)
     {
-        _logger.LogInformation("AlfaPayClient QueryDepositForm apiToken:{apiToken}, outTradeNo:{outTradeNo}", apiToken, outTradeNo);
+        _logger.LogInformation("AlfaPayClient QueryDepositForm request apiToken:{apiToken}, outTradeNo:{outTradeNo}", apiToken, outTradeNo);
 
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiToken);
@@ -56,20 +56,20 @@ internal class AlfaPayClient : IAlfaPayClient
 
         var bodyJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-        _logger.LogInformation("AlfaPay QueryDepositForm Body:{bodyJson}", bodyJson);
+        _logger.LogInformation("AlfaPayClient QueryDepositForm response Body:{bodyJson}", bodyJson);
 
         _ = response.EnsureSuccessStatusCode();
 
         return JsonSerializer.Deserialize<AlfaPayClientDepositInfo>(bodyJson);
     }
 
-    public async ValueTask<string?> WithdrawAsync(string apiToken, string notifyToken, WithdrawOrder order)
+    public async ValueTask<AlfaPayWithdrawResponse> WithdrawAsync(string apiToken, string notifyToken, WithdrawOrder order)
     {
         var orderJson = JsonSerializer.Serialize(order);
         var orderDict = JsonSerializer
             .Deserialize<Dictionary<string, object>>(orderJson)!;
 
-        _logger.LogInformation("AlfaPayClient Withdraw apiToken:{apiToken}, notifyToken:{notifyToken},  orderJson:{orderJson}", apiToken, notifyToken, orderJson);
+        _logger.LogInformation("AlfaPayClient Withdraw request apiToken:{apiToken}, notifyToken:{notifyToken},  orderJson:{orderJson}", apiToken, notifyToken, orderJson);
 
         orderDict["amount"] = decimal.Parse(orderDict["amount"].ToString()!).ToString("#.##");
 
@@ -77,7 +77,7 @@ internal class AlfaPayClient : IAlfaPayClient
 
         orderDict["sign"] = sign;
 
-        _logger.LogInformation("AlfaPay Withdraw Send sign:{sign}", sign);
+        _logger.LogInformation("AlfaPay Withdraw request Send sign:{sign}", sign);
 
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiToken);
@@ -90,10 +90,18 @@ internal class AlfaPayClient : IAlfaPayClient
 
         var bodyJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-        _logger.LogInformation("AlfaPay Withdraw Body:{bodyJson}", bodyJson);
+        _logger.LogInformation("AlfaPayClient Withdraw response Body:{bodyJson}", bodyJson);
 
         _ = response.EnsureSuccessStatusCode();
 
-        return bodyJson;
+        var respose = JsonSerializer.Deserialize<AlfaPayWithdrawResponse>(bodyJson);
+
+        if (respose is null)
+            throw new ApiFailException();
+
+        if (respose.Success is false)
+            throw new ApiFailException();
+
+        return respose;
     }
 }
