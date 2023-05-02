@@ -6,5 +6,5 @@ internal interface IAlfaPayClient
 
     ValueTask<AlfaPayClientDepositInfo?> QueryDepositFormAsync(string apiToken, Guid outTradeNo);
 
-    ValueTask<string?> WithdrawAsync(string apiToken, string notifyToken, WithdrawOrder order);
+    ValueTask<AlfaPayWithdrawResponse> WithdrawAsync(string apiToken, string notifyToken, WithdrawOrder order);
 }
