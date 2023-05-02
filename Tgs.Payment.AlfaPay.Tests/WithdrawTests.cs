@@ -85,7 +85,7 @@ namespace AlfaPay.Core.UnitTests
                 message = "validation error",
                 errors = new
                 {
-                    amount = "餘額不足"
+                    amount = new string[] { "餘額不足" }
                 }
             };
 
