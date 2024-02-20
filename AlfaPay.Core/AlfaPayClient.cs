@@ -95,7 +95,7 @@ public class AlfaPayClient(
             ["bank_id"] = order.BankId,
             ["bank_owner"] = order.BankOwner,
             ["account_number"] = order.AccountNumber,
-            ["amount"] = order.Amount.ToString(),
+            ["amount"] = order.Amount.ToString("#.##"),
             ["callback_url"] = order.CallbackUrl.AbsoluteUri,
         };
 
