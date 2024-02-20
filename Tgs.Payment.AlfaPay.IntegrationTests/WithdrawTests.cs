@@ -1,120 +1,99 @@
-﻿using System.Text;
+﻿using System.Net.Http.Headers;
+using System.Net.Mime;
+using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
-using Stateless;
-using Tgs.Payment.AlfaPay.ApplicationServices;
+using Tgs.Payment.AlfaPay.Client;
 using Tgs.Payment.Clients;
-using Tgs.ServiceUtility;
+using Xunit.Abstractions;
 
 namespace Tgs.Payment.AlfaPay.IntegrationTests;
 
-[TestClass]
-public class WithdrawTests
+public class WithdrawTests(ITestOutputHelper testOutputHelper)
 {
-    [TestMethod]
-    public async Task WithdrawCallback()
+    private readonly ITestOutputHelper _testOutputHelper = testOutputHelper ?? throw new ArgumentNullException(nameof(testOutputHelper));
+
+    [Fact]
+    public async Task 代付回調_訂單狀態沖回()
     {
-        var fakeGetWithdrawFormQueryService = Substitute.For<IGetService<GetWithdrawFormQuery, WithdrawForm?>>();
         var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
         var fakePaymentClient = Substitute.For<IPaymentClient>();
 
-        await using var web = new TestAlfaPayApplication(builder => builder
-            .ConfigureServices(services => services
-                .AddSingleton(fakeGetWithdrawFormQueryService)
-                .AddSingleton(fakePaymentServiceClient)
-                .AddSingleton(fakePaymentClient)));
+        await using var web = AlfaPayTestHost.Factory
+            .WithWebHostBuilder(hostBuilder => hostBuilder
+                .ConfigureLogging(logging => logging.AddXUnit(_testOutputHelper))
+                .ConfigureServices(services => services
+                    .AddSingleton(fakePaymentServiceClient)
+                    .AddSingleton(fakePaymentClient)));
 
         var httpClient = web.CreateClient();
 
-        var apiToken = "3p3FCtslWkFu9iFkAnFjOKRLWZoqAy58iaDldaCZ1M4jNmyVJA0fhkSe5IIv";
-        var notifyToken = "sPknBbCd38DZWHhEZ2DyHFdyvgkDwULFl7tefGILMYwOUIaFjhqIsUps3T98";
+        var formId = Guid.Parse("b9a48264-fed8-4286-98b1-053c6e3a2274");
+        var brandId = Guid.NewGuid();
+        var apiToken = "A2B0ZGwcPXFw8YB84mSrXnVVGQnwTImulmRxvXmsWxMKXaWBv2d3NbcwGxLc";
+        var notifyToken = "DzBwQEyXd2OZZ8IFWrQCWunnmd0vZHqrKeKOaxxNe2gpS5ZSYx2KdFext74J";
 
-        var withdrawFormId = Guid.Parse("309c8a04-232b-472e-93eb-c4364906b85b");
-        var formDict = new Dictionary<string, object>
-        {
-            ["trade_no"] = "23a749c3-2d09-403c-95b7-21994a7942f1",
-            ["amount"] = "200.00",
-            ["out_trade_no"] = withdrawFormId.ToString(),
-            ["state"] = "completed",
-            ["sign"] = "16aab275570247895de8f84e8502425b"
-        };
+        var settings = new AlfaPayWithdrawSettings(
+            apiToken,
+            notifyToken,
+            "9517585997",
+            "GCASH",
+            "測試帳號",
+            formId);
+        var withdrawResponse = new AlfaPayWithdrawResponse(formId, "42e74452-503d-4de8-ad21-aa879a3af6e9");
 
-        var sign = AlfaPayHasher.ComputeHash(apiToken, notifyToken, AlfaPayPaymentType.Withdraw, formDict);
+        var applyInfo = new AlfaPayWithdrawApplyInfo(settings, withdrawResponse);
 
-        formDict["sign"] = sign;
-
-        var applyInfo = new AlfaPayWithdrawApplyInfo(
-            new AlfaPayWithdrawSettings(
-                apiToken,
-                notifyToken,
-                "099517585997",
-                "GCASH",
-                "王小明",
-                withdrawFormId),
-            new AlfaPayWithdrawResponse
+        _ = fakePaymentServiceClient.GetWithdrawFormAsync(
+                Arg.Is(formId),
+                Arg.Any<CancellationToken>())
+            .Returns(new WithdrawFormInfo
             {
-                Success = true,
-                Data = new WithdrawResponseData
-                {
-                    AccountNumber = "099517585997",
-                    Amount = 200M,
-                    BankId = "GCASH",
-                    BankOwner = "\u738b\u5c0f\u660e",
-                    OutTradeNo = "309c8a04-232b-472e-93eb-c4364906b85b",
-                    CallbackUrl = "https://dev-payment.rpgp.cc/alfapay/withdraw/callback",
-                    State = "completed",
-                    TradeNo = "23a749c3-2d09-403c-95b7-21994a7942f1"
-                }
+                Id = formId,
+                BrandId = brandId,
+                Status = PaymentFlowState.Approved,
+                ApplyInfo = JsonSerializer.Serialize(applyInfo, AlfaPayUtility.SerializerOptions)
             });
 
-        _ = fakeGetWithdrawFormQueryService.GetAsync(Arg.Any<GetWithdrawFormQuery>())
-            .Returns(new WithdrawForm(
-                withdrawFormId,
-                "4udxu8ivnr24",
-                UserType.Player,
-                Guid.NewGuid(),
-                Guid.NewGuid(),
-                200M,
-                PaymentFlowState.Approved,
-                Guid.NewGuid(),
-                null,
-                applyInfo));
+        var request = """
+            {
+                "trade_no": "42e74452-503d-4de8-ad21-aa879a3af6e9",
+                "amount": "100.00",
+                "out_trade_no": "b9a48264-fed8-4286-98b1-053c6e3a2274",
+                "state": "refund",
+                "sign": "09b9da81dfe0f5a32cfa8fee283a2b69"
+            }
+            """;
 
-        var fsm = new StateMachine<PaymentFlowState, PaymentTrigger>(PaymentFlowState.Approved);
+        var content = new StringContent(request, Encoding.UTF8, new MediaTypeHeaderValue(MediaTypeNames.Application.Json));
 
-        _ = fsm.Configure(PaymentFlowState.Init)
-            .Permit(PaymentTrigger.WithdrawCreate, PaymentFlowState.WaitApprove)
-            .Permit(PaymentTrigger.Reject, PaymentFlowState.Reject);
-
-        _ = fsm.Configure(PaymentFlowState.WaitApprove)
-            .Permit(PaymentTrigger.Approve, PaymentFlowState.Approved)
-            .Permit(PaymentTrigger.Reject, PaymentFlowState.Reject);
-
-        _ = fsm.Configure(PaymentFlowState.Approved)
-            .Permit(PaymentTrigger.PaymentWithdrawCompleted, PaymentFlowState.Paid)
-            .Permit(PaymentTrigger.Reject, PaymentFlowState.Reject);
-
-        _ = fakePaymentServiceClient.CreateWithdrawStateMachine(Arg.Is(PaymentFlowState.Approved))
-            .Returns(fsm);
-
-        var requestContent = new StringContent(JsonSerializer.Serialize(formDict), Encoding.UTF8, "application/json");
-
-        var response = await httpClient.PostAsync("/withdraw/callback", requestContent);
+        var response = await httpClient.PostAsync("/withdraw/callback", content);
 
         var actual = await response.Content.ReadAsStringAsync();
 
-        Assert.AreEqual("ok", actual);
+        var paymentReturn = new AlfaPayWithdrawReturn()
+        {
+            FormId = formId,
+            Amount = 100.00m,
+            Sign = "09b9da81dfe0f5a32cfa8fee283a2b69",
+            ThirdPartyOrderNo = "42e74452-503d-4de8-ad21-aa879a3af6e9",
+            Status = "refund",
+        };
 
+        Assert.Equal("ok", actual);
         _ = fakePaymentServiceClient.Received(1)
             .SubmitWithdrawFormStatusAsync(
-                Arg.Is(withdrawFormId),
-                Arg.Is(default(PaymentFlowState?)),
-                Arg.Any<string?>());
+                Arg.Is(formId),
+                paymentReturn: Arg.Is(JsonSerializer.Serialize(paymentReturn, AlfaPayUtility.SerializerOptions)),
+                cancellationToken: Arg.Any<CancellationToken>());
+
         _ = fakePaymentClient.Received(1)
-            .PaidWithdrawAsync(
-                Arg.Is(withdrawFormId),
-                Arg.Any<Guid>(),
+            .RejectWithdrawAsync(
+                Arg.Is(formId),
+                Arg.Is(brandId),
                 Arg.Any<CancellationToken>());
     }
 }

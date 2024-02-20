@@ -49,7 +49,6 @@ Selector labels
 app.kubernetes.io/name: {{ include "alfa-pay.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 tgs.kind: payment
-app: {{ include "alfa-pay.name" . }}
 {{- end }}
 
 {{/*

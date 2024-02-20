@@ -1,38 +1,32 @@
-﻿using Tgs.Payment.Clients;
+﻿using System.Text.Json;
+using Tgs.Payment.AlfaPay.Client;
+using Tgs.Payment.Clients;
 using Tgs.ServiceUtility;
 
 namespace Tgs.Payment.AlfaPay.ApplicationServices;
 
-internal class GetDepositFormQueryService : IGetService<GetDepositFormQuery, DepositForm?>
+internal class GetDepositFormQueryService(
+    IPaymentServiceClient paymentServiceClient) : IGetService<GetDepositFormQuery, DepositForm?>
 {
-    private readonly IPaymentServiceClient _paymentServiceClient;
-    private readonly AlfaPaySerializer _alfaPaySerializer;
-
-    public GetDepositFormQueryService(
-        IPaymentServiceClient paymentServiceClient,
-        AlfaPaySerializer alfaPaySerializer)
-    {
-        _paymentServiceClient = paymentServiceClient ?? throw new ArgumentNullException(nameof(paymentServiceClient));
-        _alfaPaySerializer = alfaPaySerializer;
-    }
+    private readonly IPaymentServiceClient _paymentServiceClient = paymentServiceClient ?? throw new ArgumentNullException(nameof(paymentServiceClient));
 
     public async ValueTask<DepositForm?> GetAsync(GetDepositFormQuery query, CancellationToken cancellationToken = default)
     {
-        var formData = await _paymentServiceClient
+        var data = await _paymentServiceClient
             .GetDepositFormAsync(query.FormId, cancellationToken)
             .ConfigureAwait(false);
 
-        return formData == null
+        return data == null
             ? null
             : new DepositForm(
-                formData.Id,
-                formData.PlayerCode,
-                formData.BrandId,
-                formData.BrandPaymentId,
-                formData.Amount,
-                formData.Status,
-                string.IsNullOrEmpty(formData.ApplyInfo)
+                data.Id,
+                data.PlayerCode,
+                data.BrandId,
+                data.BrandPaymentId,
+                data.Amount,
+                data.Status,
+                string.IsNullOrEmpty(data.ApplyInfo)
                     ? null
-                    : _alfaPaySerializer.Deserialize<AlfaPayDepositApplyInfo>(formData.ApplyInfo));
+                    : JsonSerializer.Deserialize<AlfaPayDepositApplyInfo>(data.ApplyInfo, AlfaPayUtility.SerializerOptions), data.PaymentReturn);
     }
 }

@@ -1,111 +1,105 @@
-﻿using System.Text;
+﻿using System.Net.Http.Headers;
+using System.Net.Mime;
+using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
-using Stateless;
-using Tgs.Payment.AlfaPay.ApplicationServices;
+using Tgs.Payment.AlfaPay.Client;
 using Tgs.Payment.Clients;
-using Tgs.ServiceUtility;
+using Xunit.Abstractions;
 
 namespace Tgs.Payment.AlfaPay.IntegrationTests;
 
-[TestClass]
-public class DepositTests
+public class DepositTests(ITestOutputHelper testOutputHelper)
 {
-    [TestMethod]
-    public async Task DepositCallback()
+    private readonly ITestOutputHelper _testOutputHelper = testOutputHelper ?? throw new ArgumentNullException(nameof(testOutputHelper));
+
+    [Fact]
+    public async Task 代收回調_訂單狀態成功()
     {
-        var fakeGetDepositFormService = Substitute.For<IGetService<GetDepositFormQuery, DepositForm?>>();
         var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
         var fakePaymentClient = Substitute.For<IPaymentClient>();
 
-        await using var web = new TestAlfaPayApplication(builder => builder
-            .ConfigureServices(services => services
-                .AddSingleton(fakeGetDepositFormService)
-                .AddSingleton(fakePaymentServiceClient)
-                .AddSingleton(fakePaymentClient)));
+        await using var web = AlfaPayTestHost.Factory
+            .WithWebHostBuilder(hostBuilder => hostBuilder
+                .ConfigureLogging(logging => logging.AddXUnit(_testOutputHelper))
+                .ConfigureServices(services => services
+                    .AddSingleton(fakePaymentServiceClient)
+                    .AddSingleton(fakePaymentClient)));
 
         var httpClient = web.CreateClient();
 
-        var depositFormId = Guid.Parse("0cb6ff09-3291-4bdf-ae98-11d0869ca5c9");
-        var brandId = Guid.Parse("4e86719f-243f-46f6-b010-5c758b7285af");
+        var formId = Guid.Parse("1f194dc3-b2fe-4b1c-9f91-65c92f20a402");
+        var brandId = Guid.NewGuid();
+        var apiToken = "A2B0ZGwcPXFw8YB84mSrXnVVGQnwTImulmRxvXmsWxMKXaWBv2d3NbcwGxLc";
+        var notifyToken = "DzBwQEyXd2OZZ8IFWrQCWunnmd0vZHqrKeKOaxxNe2gpS5ZSYx2KdFext74J";
 
-        var formDict = new Dictionary<string, object>
-        {
-            ["sign"] = "a7c9b156646556d40dd534ed3cabfe12",
-            ["state"] = "completed",
-            ["amount"] = "600.00",
-            ["trade_no"] = "a435f350-bda2-48c3-876d-fb57dd48bd7f",
-            ["out_trade_no"] = depositFormId,
-            ["request_amount"] = 600,
-        };
+        var request = """
+            {
+                "trade_no": "0a14d1d4-4740-4f4c-9173-1b40d5776910",
+                "request_amount": 500,
+                "amount": "500.00",
+                "out_trade_no": "1f194dc3-b2fe-4b1c-9f91-65c92f20a402",
+                "state": "completed",
+                "sign": "d91ba7c240a3262c1995a9601c3acf78",
+                "callback_url": "https://dev-payment.rpgp.cc/alfapay/deposit/callback"
+            }
+            """;
 
-        var apiToken = "3p3FCtslWkFu9iFkAnFjOKRLWZoqAy58iaDldaCZ1M4jNmyVJA0fhkSe5IIv";
-        var notifyToken = "sPknBbCd38DZWHhEZ2DyHFdyvgkDwULFl7tefGILMYwOUIaFjhqIsUps3T98";
-
-        var sign = AlfaPayHasher.ComputeHash(apiToken, notifyToken, AlfaPayPaymentType.Deposit, formDict);
-
-        formDict["sign"] = sign;
+        var content = new StringContent(request, Encoding.UTF8, new MediaTypeHeaderValue(MediaTypeNames.Application.Json));
 
         var applyInfo = new AlfaPayDepositApplyInfo(
-            new AlfaPayDepositSettings(apiToken, notifyToken, depositFormId, null),
-            new AlfaPayDepositResponse
+            new AlfaPayDepositSettings(
+                apiToken,
+                notifyToken,
+                formId,
+                null),
+             new AlfaPayDepositResponse(
+                500m,
+                formId,
+                new Uri("https://payhub1255.com/r/dmp/0a14d1d4-4740-4f4c-9173-1b40d5776910"),
+                "0a14d1d4-4740-4f4c-9173-1b40d5776910"));
+
+        _ = fakePaymentServiceClient.GetDepositFormAsync(Arg.Is(formId), Arg.Any<CancellationToken>())
+            .Returns(new DepositFormInfo
             {
-                Success = true,
-                Data = new DepositResponseData
-                {
-                    Uri = "https://tiancip020706.com/r/t/a435f350-bda2-48c3-876d-fb57dd48bd7f",
-                    Amount = "600.00",
-                    TradeNo = "a435f350-bda2-48c3-876d-fb57dd48bd7f",
-                    OutTradeNo = "0cb6ff09-3291-4bdf-ae98-11d0869ca5c9",
-                    QrCode = ""
-                }
+                Id = formId,
+                BrandId = brandId,
+                Status = PaymentFlowState.WaitPayment,
+                Amount = 500m,
+                ThirdPartyOrderNo = "0a14d1d4-4740-4f4c-9173-1b40d5776910",
+                ApplyInfo = JsonSerializer.Serialize(applyInfo, AlfaPayUtility.SerializerOptions)
             });
 
-        _ = fakeGetDepositFormService.GetAsync(Arg.Any<GetDepositFormQuery>())
-            .Returns(new DepositForm(
-                depositFormId,
-                "4ugywbc0jwnu",
-                brandId,
-                Guid.Parse("eb80cab0-4c61-4399-910e-e63c995acd8f"),
-                600M,
-                PaymentFlowState.WaitPayment,
-                applyInfo));
-
-        var fsm = new StateMachine<PaymentFlowState, PaymentTrigger>(PaymentFlowState.WaitPayment);
-
-        _ = fsm.Configure(PaymentFlowState.Init)
-            .Permit(PaymentTrigger.DepositCreate, PaymentFlowState.WaitPayment)
-            .Permit(PaymentTrigger.Reject, PaymentFlowState.Reject);
-
-        _ = fsm.Configure(PaymentFlowState.WaitPayment)
-            .Permit(PaymentTrigger.PaymentDepositCompleted, PaymentFlowState.WaitApprove)
-            .Permit(PaymentTrigger.Reject, PaymentFlowState.Reject);
-
-        _ = fsm.Configure(PaymentFlowState.WaitApprove)
-            .Permit(PaymentTrigger.Approve, PaymentFlowState.Approved)
-            .Permit(PaymentTrigger.Reject, PaymentFlowState.Reject);
-
-        _ = fakePaymentServiceClient.CreateDepositStateMachine(Arg.Is(PaymentFlowState.WaitPayment))
-            .Returns(fsm);
-
-        var requestContent = new StringContent(JsonSerializer.Serialize(formDict), Encoding.UTF8, "application/json");
-
-        var response = await httpClient.PostAsync("/deposit/callback", requestContent);
+        var response = await httpClient.PostAsync("/deposit/callback", content);
 
         var actual = await response.Content.ReadAsStringAsync();
 
-        Assert.AreEqual("ok", actual);
+        Assert.Equal("ok", actual);
+
+        var paymentReturn = new AlfaPayDepositReturn()
+        {
+            Status = "completed",
+            FormId = formId,
+            ThirdPartyOrderNo = "0a14d1d4-4740-4f4c-9173-1b40d5776910",
+            RealAmount = 500.00m,
+            OrderAmount = 500m,
+            Sign = "d91ba7c240a3262c1995a9601c3acf78",
+        };
 
         _ = fakePaymentServiceClient.Received(1)
             .SubmitDepositFormStatusAsync(
-                Arg.Is(depositFormId),
-                Arg.Is((PaymentFlowState?)null),
-                Arg.Any<string>());
+                Arg.Is(formId),
+                paymentReturn: Arg.Is(JsonSerializer.Serialize(paymentReturn, AlfaPayUtility.SerializerOptions)),
+                cancellationToken: Arg.Any<CancellationToken>());
+
         _ = fakePaymentClient.Received(1)
             .ApproveDepositAsync(
-                Arg.Is(depositFormId),
+                Arg.Is(formId),
                 Arg.Is(brandId),
-                Arg.Is(600M));
+                Arg.Is(paymentReturn.OrderAmount),
+                Arg.Any<CancellationToken>());
     }
 }

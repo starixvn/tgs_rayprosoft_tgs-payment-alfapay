@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Tgs.Payment.AlfaPay.ApplicationServices;
+using Tgs.Payment.AlfaPay.Client;
 using Tgs.Payment.AlfaPay.ViewModels;
 using Tgs.Payment.Clients;
 using Tgs.ServiceUtility;
@@ -10,67 +11,68 @@ namespace Tgs.Payment.AlfaPay.Controllers;
 
 [Route("[controller]")]
 [ApiController]
-public class WithdrawController : ControllerBase
+public class WithdrawController(ILogger<WithdrawController> logger) : ControllerBase
 {
-    private readonly ILogger<WithdrawController> _logger;
-
-    public WithdrawController(ILogger<WithdrawController> logger)
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly ILogger<WithdrawController> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     [Consumes("application/json")]
     [Produces(MediaTypeNames.Text.Plain)]
     [HttpPost("callback")]
     public async Task<string> WithdrawCallbackAsync(
-        [FromServices] IGetService<GetWithdrawFormQuery, WithdrawForm?> getWithdrawFormService,
-        [FromServices] ICommandService<CheckSigningCodeCommand> checkSigningCodeService,
+        [FromServices] IGetService<GetWithdrawFormQuery, WithdrawForm?> getService,
+        [FromServices] AlfaPayHasher hasher,
         [FromServices] IPaymentServiceClient paymentServiceClient,
-        [FromServices] AlfaPaySerializer serializer,
         [FromServices] IPaymentClient paymentClient,
-        [FromBody] Dictionary<string, object> response)
+        [FromBody] CallbackWithdrawViewModel source)
     {
-        var json = JsonSerializer.Serialize(response);
+        _logger.LogInformation("{source}", source);
 
-        _logger.LogInformation("AlfaPay Withdraw Callback:{json}", json);
+        var formId = Guid.Parse(source.OutTradeNo);
 
-        var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;
-
-        var withdrawResponse = JsonSerializer.Deserialize<CallbackWithdrawViewModel>(json)!;
-
-        var paymentReturn = new AlfaPayWithdrawReturn()
-        {
-            TradeNo = withdrawResponse.TradeNo,
-            Amount = decimal.Parse(withdrawResponse.Amount),
-            OutTradeNo = Guid.Parse(withdrawResponse.OutTradeNo),
-            State = withdrawResponse.State,
-            Sign = withdrawResponse.Sign
-        };
-
-        var withdrawForm = await getWithdrawFormService
-            .GetAsync(new GetWithdrawFormQuery(paymentReturn.OutTradeNo))
+        var withdrawForm = await getService
+            .GetAsync(new(formId), HttpContext.RequestAborted)
             .ConfigureAwait(false);
 
         if (withdrawForm == null)
+        {
+            _logger.LogWarning("Can't found withdraw form({id}).", formId);
             return "fail";
+        }
 
-        var checkSigningCodeCommand = new CheckSigningCodeCommand(
-            dict,
-            withdrawResponse.Sign,
-            withdrawForm!.ApplyInfo!.Settings.ApiToken,
-            withdrawForm.ApplyInfo.Settings.NotifyToken,
-            AlfaPayPaymentType.Withdraw);
+        var apiToken = withdrawForm.ApplyInfo!.Settings.ApiToken;
+        var notifyToken = withdrawForm.ApplyInfo!.Settings.NotifyToken;
 
-        await checkSigningCodeService
-            .ExecuteAsync(checkSigningCodeCommand)
-            .ConfigureAwait(false);
+        var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(source))!;
 
-        if (await checkSigningCodeCommand.CommandResultSource.Task.ConfigureAwait(false) is false)
+        var sign = source.Sign;
+        var hash = hasher.ComputeHash(
+            apiToken,
+            notifyToken,
+            dict.Where(kv => kv.Value is not null)
+                .Select(kv => new KeyValuePair<string, string?>(
+                kv.Key,
+                kv.Value!.ToString())));
+
+        _logger.LogInformation("Compute hash: {hash}, sign: {sign}", hash, sign);
+
+        if (sign != hash)
+        {
+            _logger.LogWarning("Sign value invalid. input: {sign}, compute: {hash}", sign, hash);
             return "fail";
+        }
 
-        var fsm = paymentServiceClient.CreateWithdrawStateMachine(withdrawForm.Status);
+        var paymentReturn = new AlfaPayWithdrawReturn()
+        {
+            FormId = formId,
+            Amount = decimal.Parse(source.Amount),
+            Sign = sign,
+            ThirdPartyOrderNo = source.TradeNo,
+            Status = source.State,
+        };
 
-        switch (paymentReturn.State)
+        var fsm = PaymentStateMachineFactory.CreateWithdrawStateMachine(withdrawForm.Status);
+
+        switch (paymentReturn.Status)
         {
             case "completed":
                 if (fsm.CanFire(PaymentTrigger.PaymentWithdrawCompleted))
@@ -79,7 +81,7 @@ public class WithdrawController : ControllerBase
 
                     await paymentServiceClient.SubmitWithdrawFormStatusAsync(
                         withdrawForm.Id,
-                        paymentReturn: serializer.Serialize(paymentReturn)).ConfigureAwait(false);
+                        paymentReturn: JsonSerializer.Serialize(paymentReturn, AlfaPayUtility.SerializerOptions)).ConfigureAwait(false);
 
                     await paymentClient
                         .PaidWithdrawAsync(
@@ -91,6 +93,7 @@ public class WithdrawController : ControllerBase
 
                 break;
 
+            case "refund":
             case "failed":
                 if (fsm.CanFire(PaymentTrigger.Reject))
                 {
@@ -98,7 +101,7 @@ public class WithdrawController : ControllerBase
 
                     await paymentServiceClient.SubmitWithdrawFormStatusAsync(
                         withdrawForm.Id,
-                        paymentReturn: serializer.Serialize(paymentReturn)).ConfigureAwait(false);
+                        paymentReturn: JsonSerializer.Serialize(paymentReturn, AlfaPayUtility.SerializerOptions)).ConfigureAwait(false);
 
                     await paymentClient
                         .RejectWithdrawAsync(withdrawForm.Id, withdrawForm.BrandId)
@@ -107,8 +110,6 @@ public class WithdrawController : ControllerBase
 
                 break;
         }
-
-        _logger.LogInformation("AlfPay Withdraw callback executed");
 
         return "ok";
     }

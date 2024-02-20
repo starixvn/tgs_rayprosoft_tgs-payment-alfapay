@@ -1,16 +1,14 @@
-using Microsoft.AspNetCore.HttpLogging;
-using OpenTelemetry.Exporter;
+﻿using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.Extensions.Options;
+using NATS.Client.Core;
 using OpenTelemetry.Instrumentation.AspNetCore;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Tgs.Payment.AlfaPay;
 using Tgs.Payment.AlfaPay.MessageQueue;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Configuration
-    .AddJsonFile("/config/appsettings.json", true)
-    .AddEnvironmentVariables();
 
 builder.Logging
     .AddOpenTelemetry(options =>
@@ -19,9 +17,9 @@ builder.Logging
         options.ParseStateValues = true;
         _ = options.AddFluentdForwardExporter(fluentOptions =>
         {
-            var nodeIp = builder.Configuration.GetValue<string>("NODE_IP");
+            var nodeIp = builder.Configuration.GetValue<string>("NODE_IP")!;
             fluentOptions.Host = nodeIp;
-            fluentOptions.Tag = builder.Configuration.GetValue<string>("OTEL_SERVICE_NAME");
+            fluentOptions.Tag = builder.Configuration.GetValue<string>("OTEL_SERVICE_NAME")!;
             fluentOptions.UseMessagePack();
         });
     });
@@ -30,15 +28,34 @@ builder.Services
     .AddControllers();
 
 builder.Services
-    .AddHttpClientLoggingHandler()
     .AddAlfaPay(
-        (options, _) => builder.Configuration
-            .GetSection("AlfaPay")
-            .Bind(options),
-        sp => sp.ResolveLoggingHandler<AlfaPayOptions>())
+        (options, _) => builder.Configuration.GetSection("AlfaPay").Bind(options),
+        clientBuilder => clientBuilder
+            .ConfigureHttpClient((sp, http) =>
+            {
+                var options = sp.GetRequiredService<IOptions<AlfaPayOptions>>().Value;
+
+                http.BaseAddress = options.PaymentApiUrl;
+            })
+            .AddLoggingHandler<AlfaPayOptions>())
+    .AddPaymentClient()
+    .AddPaymentServiceClient(httpBuilder => httpBuilder
+        .ConfigureHttpClient((sp, http) =>
+        {
+            var options = sp.GetRequiredService<IOptions<AlfaPayOptions>>().Value;
+
+            http.BaseAddress = options.PaymentServiceBaseUrl;
+        }));
+
+builder.Services
+    .AddKeyedSingleton("Nats",
+    (sp, _) => new NatsConnection(NatsOpts.Default with
+    {
+        Url = builder.Configuration.GetConnectionString("Nats")!
+    }))
     .AddMessageQueue()
     .AddNatsMessageQueue(natsConfig => natsConfig
-        .ConfigQueueOptions((options, _) => options.Url = builder.Configuration.GetConnectionString("Nats"))
+        .ConfigureResolveConnection(sp => sp.GetRequiredKeyedService<NatsConnection>("Nats"))
         .AddProcessor(
             ProcessorTypes.DepositProcessorType,
             "tgs.payment.alfapay.deposit",
@@ -54,50 +71,46 @@ builder.Services
     .AddNatsGlobPatternExchange("*");
 
 builder.Services
+    .AddProfileViewer()
     .AddHttpLogging(logging =>
     {
         logging.LoggingFields = HttpLoggingFields.All;
         logging.MediaTypeOptions.AddText("application/x-www-form-urlencoded");
         logging.MediaTypeOptions.AddText("text/html");
-    });
-
-builder.Services
-    .AddOptions<OtlpExporterOptions>()
-    .Configure<IConfiguration>((options, conifg) =>
-    {
-        var nodeIp = conifg.GetValue<string>("NODE_IP");
-
-        if (!string.IsNullOrWhiteSpace(nodeIp))
-            options.Endpoint = new Uri($"http://{nodeIp}:4317");
-
-        conifg.GetSection("Opentelemetry:Tracing").Bind(options);
+        logging.MediaTypeOptions.AddText("multipart/form-data");
     })
+    .AddHealthChecks()
     .Services
-    .AddOpenTelemetryTracing(builder => builder
+    .AddOpenTelemetry()
+    .WithTracing(traceBuilder => traceBuilder
         .SetResourceBuilder(ResourceBuilder.CreateDefault()
-        .AddEnvironmentVariableDetector())
+            .AddEnvironmentVariableDetector())
         .AddSource("Tgs.*")
+        .AddSource("Valhalla.*")
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddProfileViewExporter()
         .AddOtlpExporter())
-    .Configure<AspNetCoreInstrumentationOptions>(options => options.Filter =
+    .WithMetrics(meterBuiler => meterBuiler
+        .AddRuntimeInstrumentation()
+        .AddAspNetCoreInstrumentation()
+        .AddOtlpExporter())
+    .Services
+    .Configure<AspNetCoreTraceInstrumentationOptions>(options => options.Filter =
         httpContext => !httpContext.Request.Path.HasValue
             || !httpContext.Request.Path.StartsWithSegments("/swagger")
             && !httpContext.Request.Path.StartsWithSegments("/healthz")
             && !httpContext.Request.Path.StartsWithSegments("/metrics")
+            && !httpContext.Request.Path.StartsWithSegments("/profiler/")
             && !new[] { "html", "ico", "png", "jpg" }.Any(
-                ext => httpContext.Request.Path.Value.EndsWith($".{ext}"))); ;
-
-builder.Services
-    .AddHealthChecks();
+                ext => httpContext.Request.Path.Value.EndsWith($".{ext}")));
 
 var app = builder.Build();
 
 app.UseHttpLogging();
-
 app.MapControllers();
 app.MapHealthChecks("/healthz");
+app.MapProfileViewer();
 
 app.Use(async (context, next) =>
 {

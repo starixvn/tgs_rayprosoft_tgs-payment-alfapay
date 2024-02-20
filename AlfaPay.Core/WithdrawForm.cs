@@ -1,4 +1,5 @@
-﻿using Tgs.Payment.Clients;
+﻿using Tgs.Payment.AlfaPay.Client;
+using Tgs.Payment.Clients;
 
 namespace Tgs.Payment.AlfaPay;
 

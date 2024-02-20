@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Tgs.Payment.AlfaPay.ApplicationServices;
+using Tgs.Payment.AlfaPay.Client;
 using Tgs.Payment.AlfaPay.ViewModels;
 using Tgs.Payment.Clients;
 using Tgs.ServiceUtility;
@@ -10,74 +11,67 @@ namespace Tgs.Payment.AlfaPay.Controllers;
 
 [Route("[controller]")]
 [ApiController]
-public class DepositController : ControllerBase
+public class DepositController(ILogger<DepositController> logger) : ControllerBase
 {
-    private readonly ILogger<DepositController> _logger;
-
-    public DepositController(ILogger<DepositController> logger)
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly ILogger<DepositController> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     [Consumes("application/json")]
     [Produces(MediaTypeNames.Text.Plain)]
     [HttpPost("callback")]
     public async Task<string> DepositCallbackAsync(
-       [FromServices] IGetService<GetDepositFormQuery, DepositForm?> getFormService,
+       [FromServices] IGetService<GetDepositFormQuery, DepositForm?> getService,
        [FromServices] IPaymentServiceClient paymentServiceClient,
-       [FromServices] AlfaPaySerializer alfaPaySerializer,
        [FromServices] IPaymentClient paymentClient,
-       [FromServices] ICommandService<CheckSigningCodeCommand> checkSigningCodeService,
-       [FromBody] Dictionary<string, object> response)
+       [FromServices] AlfaPayHasher hasher,
+       [FromBody] CallbackDepositViewModel source)
+
     {
-        var json = JsonSerializer.Serialize(response);
+        _logger.LogInformation("{source}", source);
 
-        _logger.LogInformation("AlfaPay Deposit Callback:{json}", json);
+        var formId = Guid.Parse(source.OutTradeNo);
 
-        var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;
+        var depositForm = await getService
+            .GetAsync(new(formId), HttpContext.RequestAborted)
+            .ConfigureAwait(false);
 
-        var depositResponse = JsonSerializer.Deserialize<CallbackDepositViewModel>(json)!;
+        if (depositForm == null)
+        {
+            _logger.LogWarning("Can't found deposit form({id}).", formId);
+            return "fail";
+        }
+
+        var apiToken = depositForm.ApplyInfo!.Settings.ApiToken;
+        var notifyToken = depositForm.ApplyInfo!.Settings.NotifyToken;
+
+        var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(source))!;
+
+        var sign = source.Sign;
+        var hash = hasher.ComputeHash(
+            apiToken,
+            notifyToken,
+            dict.Select(kv => new KeyValuePair<string, string?>(kv.Key, kv.Value.ToString())));
+
+        _logger.LogInformation("Compute hash: {hash}, sign: {sign}", hash, sign);
+
+        if (sign != hash)
+        {
+            _logger.LogWarning("Sign value invalid. input: {sign}, compute: {hash}", sign, hash);
+            return "fail";
+        }
 
         var paymentReturn = new AlfaPayDepositReturn()
         {
-            TradeNo = depositResponse.TradeNo,
-            RequestAmount = depositResponse.RequestAmount,
-            Amount = decimal.Parse(depositResponse.Amount),
-            OutTradeNo = Guid.Parse(depositResponse.OutTradeNo),
-            State = depositResponse.State,
-            Sign = depositResponse.Sign,
-            CallbackUrl = depositResponse.CallbackUrl,
+            ThirdPartyOrderNo = source.TradeNo,
+            OrderAmount = source.RequestAmount,
+            RealAmount = decimal.Parse(source.Amount),
+            FormId = formId,
+            Status = source.State,
+            Sign = source.Sign,
         };
 
-        if (paymentReturn.State is not "completed")
-            return "fail";
+        var fsm = PaymentStateMachineFactory.CreateDepositStateMachine(depositForm.Status);
 
-        var depositForm = await getFormService
-            .GetAsync(new GetDepositFormQuery(paymentReturn.OutTradeNo))
-            .ConfigureAwait(false);
-
-        _logger.LogInformation("Form: {depositForm}", depositForm);
-
-        if (depositForm is null)
-            return "fail";
-
-        var checkSigningCodeCommand = new CheckSigningCodeCommand(
-            dict,
-            depositResponse.Sign,
-            depositForm!.ApplyInfo!.Settings.ApiToken,
-            depositForm!.ApplyInfo!.Settings.NotifyToken,
-            AlfaPayPaymentType.Deposit);
-
-        await checkSigningCodeService
-            .ExecuteAsync(checkSigningCodeCommand)
-            .ConfigureAwait(false);
-
-        if (await checkSigningCodeCommand.CommandResultSource.Task.ConfigureAwait(false) is false)
-            return "fail";
-
-        var fsm = paymentServiceClient.CreateDepositStateMachine(depositForm.Status);
-
-        if (paymentReturn.State == "completed")
+        if (paymentReturn.Status == "completed")
         {
             if (fsm.CanFire(PaymentTrigger.PaymentDepositCompleted))
             {
@@ -85,16 +79,16 @@ public class DepositController : ControllerBase
 
                 await paymentServiceClient.SubmitDepositFormStatusAsync(
                     depositForm.Id,
-                    paymentReturn: alfaPaySerializer.Serialize(paymentReturn)).ConfigureAwait(false);
+                    paymentReturn: JsonSerializer.Serialize(paymentReturn, AlfaPayUtility.SerializerOptions),
+                    cancellationToken: HttpContext.RequestAborted).ConfigureAwait(false);
 
                 await paymentClient.ApproveDepositAsync(
                     depositForm.Id,
                     depositForm.BrandId,
-                    paymentReturn.Amount).ConfigureAwait(false);
+                    paymentReturn.OrderAmount,
+                    HttpContext.RequestAborted).ConfigureAwait(false);
             }
         }
-
-        _logger.LogInformation("callback executed");
 
         return "ok";
     }
