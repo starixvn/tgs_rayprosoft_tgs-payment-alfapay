@@ -1,33 +1,24 @@
 ﻿using Microsoft.Extensions.Logging;
-using Tgs.MessageQueue;
+using Valhalla.MessageQueue;
 using Tgs.Payment.Clients;
 using Tgs.Payment.Protos;
+using System.Text.Json;
+using Tgs.Payment.AlfaPay.Client;
 
 namespace Tgs.Payment.AlfaPay.MessageQueue;
 
-internal class DepositTimeoutHandler : IMessageHandler
+internal class DepositTimeoutHandler(
+    IPaymentServiceClient paymentServiceClient,
+    IPaymentClient paymentClient,
+    AlfaPayClient alfaPayClient,
+    ILogger<DepositTimeoutHandler> logger) : IMessageHandler<ReadOnlyMemory<byte>>
 {
-    private readonly IPaymentServiceClient _paymentServiceClient;
-    private readonly IPaymentClient _paymentClient;
-    private readonly IAlfaPayClient _alfaPayClient;
-    private readonly AlfaPaySerializer _alfaPaySerializer;
-    private readonly ILogger<DepositTimeoutHandler> _logger;
+    private readonly IPaymentServiceClient _paymentServiceClient = paymentServiceClient ?? throw new ArgumentNullException(nameof(paymentServiceClient));
+    private readonly IPaymentClient _paymentClient = paymentClient ?? throw new ArgumentNullException(nameof(paymentClient));
+    private readonly AlfaPayClient _alfaPayClient = alfaPayClient ?? throw new ArgumentNullException(nameof(alfaPayClient));
+    private readonly ILogger<DepositTimeoutHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    public DepositTimeoutHandler(
-        IPaymentServiceClient paymentServiceClient,
-        IPaymentClient paymentClient,
-        IAlfaPayClient alfaPayClient,
-        AlfaPaySerializer alfaPaySerializer,
-        ILogger<DepositTimeoutHandler> logger)
-    {
-        _paymentServiceClient = paymentServiceClient ?? throw new ArgumentNullException(nameof(paymentServiceClient));
-        _paymentClient = paymentClient ?? throw new ArgumentNullException(nameof(paymentClient));
-        _alfaPayClient = alfaPayClient ?? throw new ArgumentNullException(nameof(alfaPayClient));
-        _alfaPaySerializer = alfaPaySerializer ?? throw new ArgumentNullException(nameof(alfaPaySerializer));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
-
-    public async ValueTask HandleAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
+    public async ValueTask HandleAsync(string subject, ReadOnlyMemory<byte> data, IEnumerable<MessageHeaderValue>? headerValues, CancellationToken cancellationToken = default)
     {
         var request = ScheduleRequest.Parser.ParseFrom(data.Span);
         _logger.LogInformation(
@@ -61,17 +52,18 @@ internal class DepositTimeoutHandler : IMessageHandler
             if (depositForm.Status >= PaymentFlowState.Reject)
                 return;
 
-            var applyInfo = _alfaPaySerializer.Deserialize<AlfaPayDepositApplyInfo>(depositForm.ApplyInfo!)!;
+            var applyInfo = JsonSerializer.Deserialize<AlfaPayDepositApplyInfo>(depositForm.ApplyInfo!, AlfaPayUtility.SerializerOptions)!;
 
             var result = await _alfaPayClient.QueryDepositFormAsync(
                 applyInfo.Settings.ApiToken,
-                formId).ConfigureAwait(false);
+                formId,
+                cancellationToken).ConfigureAwait(false);
 
-            if (result?.Data.State is "timeout")
+            if (result?.State is "timeout")
                 await _paymentClient
                     .RejectDepositAsync(formId, brandId, cancellationToken)
                     .ConfigureAwait(false);
-            else if (result?.Data.State is "processing")
+            else if (result?.State is "processing")
                 await _paymentClient.ScheduleAsync(
                     "tgs.payment.alfapay.deposit.schedule.reject",
                     formId,

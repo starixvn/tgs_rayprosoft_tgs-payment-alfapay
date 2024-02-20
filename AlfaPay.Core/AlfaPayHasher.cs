@@ -1,44 +1,27 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Tgs.Payment.AlfaPay;
 
-public class AlfaPayHasher
+public class AlfaPayHasher(ILogger<AlfaPayHasher> logger)
 {
-    private static readonly MD5 _Md5;
+    private readonly ILogger<AlfaPayHasher> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    static AlfaPayHasher()
+    public string ComputeHash(string apiToken, string notifyToken, IEnumerable<KeyValuePair<string, string?>> dict)
     {
-        _Md5 = MD5.Create();
-    }
+        var content = string.Join(
+            "&",
+            dict.Where(kvp => string.IsNullOrWhiteSpace(kvp.Value) is false && kvp.Key != "sign")
+                .OrderBy(kvp => kvp.Key, StringComparer.Ordinal)
+                .Select(p => $"{p.Key}={p.Value}"));
 
-    public static string ComputeHash(string apiToken, string notifyToken, AlfaPayPaymentType paymentType, IDictionary<string, object> dict)
-    {
-        var sortDict = paymentType == AlfaPayPaymentType.Deposit
-            ? dict
-                .Where(x => x.Key is not "sign" and not "callback_url")
-                .OrderBy(x => x.Key)
-                .Select(p => p.Value is null
-                    ? $"{p.Key}="
-                    : $"{p.Key}={p.Value}")
-            : dict
-                .Where(x => x.Key != "sign")
-                .OrderBy(x => x.Key)
-                .Select(p => p.Key == "amount"
-                    ? p.Value is null
-                        ? $"{p.Key}="
-                        : $"{p.Key}={decimal.Parse(p.Value.ToString()!)}"
-                    : p.Value is null
-                        ? $"{p.Key}="
-                        : $"{p.Key}={p.Value.ToString()?.Trim()}");
-        var content = string.Join("&", sortDict);
+        var fullText = $"{content}{apiToken}{notifyToken}";
 
-        var plainText = $"{content}{apiToken}{notifyToken}";
+        _logger.LogTrace("FullText: {fullText}", fullText);
 
-        var data = Encoding.UTF8.GetBytes(plainText);
+        var data = MD5.HashData(Encoding.UTF8.GetBytes(fullText));
 
-        var hash = _Md5.ComputeHash(data);
-
-        return Convert.ToHexString(hash).ToLower();
+        return Convert.ToHexString(data).ToLower();
     }
 }

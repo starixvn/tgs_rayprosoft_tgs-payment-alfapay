@@ -1,19 +1,21 @@
-{
+﻿{
   "profiles": {
-    "Tgs.Payment.AlfaPay": {
+    "http": {
       "commandName": "Project",
+      "dotnetRunMessages": true,
       "launchBrowser": true,
+      "applicationUrl": "http://localhost:5282",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "OTEL_SERVICE_NAME": "Payment-Alfapay(local)",
         "NODE_IP": "otel.rpgp.cc"
-      },
-      "dotnetRunMessages": true,
-      "applicationUrl": "https://localhost:7282;https://+:7282;http://+:5282"
+      }
     },
-    "IIS Express": {
-      "commandName": "IISExpress",
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
       "launchBrowser": true,
+      "applicationUrl": "https://localhost:7204;http://+:5282",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "OTEL_SERVICE_NAME": "Payment-Alfapay(local)",
@@ -24,21 +26,7 @@
       "commandName": "Docker",
       "launchBrowser": true,
       "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
-      "publishAllPorts": true,
-      "useSSL": true,
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "OTEL_SERVICE_NAME": "Payment-Alfapay(local)",
-        "NODE_IP": "otel.rpgp.cc"
-      }
-    }
-  },
-  "iisSettings": {
-    "windowsAuthentication": false,
-    "anonymousAuthentication": true,
-    "iisExpress": {
-      "applicationUrl": "http://localhost:61828",
-      "sslPort": 44393
+      "publishAllPorts": true      
     }
   }
 }

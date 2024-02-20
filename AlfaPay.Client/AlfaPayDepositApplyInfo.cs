@@ -1,4 +1,4 @@
-﻿namespace Tgs.Payment.AlfaPay;
+﻿namespace Tgs.Payment.AlfaPay.Client;
 
 public record AlfaPayDepositApplyInfo(
     AlfaPayDepositSettings Settings,

@@ -1,6 +1,13 @@
+include:
+  - project: rayprosoft/tgs-ci-scripts
+    ref: main
+    file: GitLab/Templates/gitlab-job-templates.yml
+
 variables:
-  ImageName: pgtgs/payment-alfapay
+  ImageName: pgtgs/payment-alfa
   TgsSettingKey: payment-alfapay
+  HelmTemplateFolderName: alfa-pay
+  BuildCacheKey: Tgs.AlfaPay.$CI_PIPELINE_IID
 
 stages:
   - build
@@ -11,88 +18,45 @@ stages:
   - deploy-prod
 
 build-code:
-  stage: build
-  script:
-    - dotnet build -c $BuildConfiguration
-  only:
-    - merge_requests
-    - main
-  artifacts:
-    untracked: true
-    expire_in: "1 days"
+  extends: .build-code-template
 
 unit-test:
-  stage: test
-  script:
-    - dotnet test -c $BuildConfiguration -l:"junit;LogFilePath=../TestReports/{assembly}-TestReport.xml" --no-restore --no-build
-  needs:
-    - job: build-code
-      artifacts: true
-  only:
-    - merge_requests
-    - main
-  artifacts:
-    when: always
-    reports:
-      junit: ./TestReports/*-TestReport.xml
+  extends: .unit-test-template  
 
 push-nuget:
-  stage: publish
-  needs:
-    - job: build-code
-      artifacts: true
-    - unit-test
-  only:
-    - main
+  extends: .push-nuget-template
   script:
-    - dotnet pack -c $BuildConfiguration "Tgs.Payment.AlfaPay.Client/Tgs.Payment.AlfaPay.Client.csproj" --no-build --no-restore
-    - dotnet nuget push "Tgs.Payment.AlfaPay.Client/bin/$BuildConfiguration/*.nupkg" -s "raypro-baget" -k $NugetApiKey --skip-duplicate
+    - push_package 'AlfaPay.Client'
   artifacts:
-    name: Nuget
-    untracked: false
-    expire_in: "30 days"
     paths:
-      - Tgs.Payment.AlfaPay.Client/bin/$BuildConfiguration/*.nupkg
+      - AlfaPay.Client/bin/$BuildConfiguration/*.nupkg
 
 push-docker-image:
   stage: publish
   needs:
-    - job: build-code
-      artifacts: true
+    - build-code      
     - unit-test
   only:
     - main
+  cache:
+    key: Tgs.Payment.AlfaPay.$CI_PIPELINE_ID
+    untracked: true
+    policy: pull
   script:
     - export Tag="$(date -d $CI_PIPELINE_CREATED_AT +%Y%m%d%H%M).$CI_PIPELINE_IID"
-    - dotnet build "Tgs.Payment.AlfaPay/Tgs.Payment.AlfaPay.csproj" -c $BuildConfiguration -t:ContainerBuild -p:DockerfileTag="$ImageName:$Tag" --no-restore
+    - docker build --build-arg $BuildConfiguration -f Tgs.Payment.SBPay/Dockerfile -t $ImageName:$Tag . --no-cache
     - docker push $ImageName:$Tag
 
 push-k8s-template:
-  stage: publish
-  needs:
-    - unit-test
-  only:
-    - main
+  extends: .push-k8s-template
   script:
-    - export Tag="$(date -d $CI_PIPELINE_CREATED_AT +%Y%m%d%H%M).$CI_PIPELINE_IID"
-    - mkdir -p artifacts/k8s
-    - cp -R deployment/k8s/alfa-pay artifacts/k8s/
-    - |
-      yq -i e '
-        .image.repository = strenv(ImageName) |
-        .image.tag = strenv(Tag)
-      ' artifacts/k8s/alfa-pay/values.yaml
-  artifacts:
-    name: HelmTemplate
-    untracked: false
-    expire_in: "180 days"
-    paths:
-      - artifacts/**/*
+    - push_k8s_template $HelmTemplateFolderName $ImageName $Tag
 
 deploy-dev:
+  extends: .deploy-template
   variables:
-    GIT_STRATEGY: none
     namespace: dev
+    kube_config: KubeConfig_Raypro_dev
   environment:
     name: dev
   stage: deploy-dev
@@ -103,40 +67,13 @@ deploy-dev:
       artifacts: true
   only:
     - main
-  before_script:
-    - export KUBECONFIG=$KubeConfig_Raypro_dev
-  script:
-    - export resources=$(kubectl get cm resources-setting -o jsonpath={.data.$TgsSettingKey})
-    - export dedicated=$(kubectl get cm tgs-settings -o jsonpath={.data.dedicated})
-    - export node_selector=$(kubectl get cm tgs-settings -o jsonpath={.data.node-selector})
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/alfa-pay \
-        -n $namespace \
-        --name-template tgs \
-        -f - 
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/alfa-pay \
-        -n $namespace \
-        --name-template tgs \
-        -f - \
-        | kubectl -n $namespace apply -f -
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF
+  when: on_success
 
 deploy-staging:
+  extends: .deploy-template
   variables:
-    GIT_STRATEGY: none
     namespace: staging
+    kube_config: KubeConfig_Raypro_staging
   environment:
     name: staging
   stage: deploy-staging
@@ -147,40 +84,12 @@ deploy-staging:
   only:
     - main
   when: manual
-  before_script:
-    - export KUBECONFIG=$KubeConfig_Raypro_staging
-  script:
-    - export resources=$(kubectl get cm resources-setting -o jsonpath={.data.$TgsSettingKey})
-    - export dedicated=$(kubectl get cm tgs-settings -o jsonpath={.data.dedicated})
-    - export node_selector=$(kubectl get cm tgs-settings -o jsonpath={.data.node-selector})
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/alfa-pay \
-        -n $namespace \
-        --name-template tgs \
-        -f - 
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/alfa-pay \
-        -n $namespace \
-        --name-template tgs \
-        -f - \
-        | kubectl -n $namespace apply -f -
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF
 
 deploy-prod:
+  extends: .deploy-template
   variables:
-    GIT_STRATEGY: none
     namespace: prod
+    kube_config: KubeConfig_Raypro_prod
   environment:
     name: prod
   stage: deploy-prod
@@ -191,32 +100,3 @@ deploy-prod:
   only:
     - main
   when: manual
-  before_script:
-    - export KUBECONFIG=$KubeConfig_Raypro_prod
-  script:
-    - export resources=$(kubectl get cm resources-setting -o jsonpath={.data.$TgsSettingKey})
-    - export dedicated=$(kubectl get cm tgs-settings -o jsonpath={.data.dedicated})
-    - export node_selector=$(kubectl get cm tgs-settings -o jsonpath={.data.node-selector})
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/alfa-pay \
-        -n $namespace \
-        --name-template tgs \
-        -f - 
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/alfa-pay \
-        -n $namespace \
-        --name-template tgs \
-        -f - \
-        | kubectl -n $namespace apply -f -
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF

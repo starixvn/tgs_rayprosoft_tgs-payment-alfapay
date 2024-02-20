@@ -18,7 +18,4 @@ public class CallbackWithdrawViewModel
 
     [JsonPropertyName("sign")]
     public string Sign { get; init; } = default!;
-
-    //[JsonPropertyName("callback_url")]
-    //public string CallbackUrl { get; init; } = default!;
 }

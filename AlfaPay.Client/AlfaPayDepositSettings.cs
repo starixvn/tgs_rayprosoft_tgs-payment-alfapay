@@ -1,7 +1,7 @@
-﻿namespace Tgs.Payment.AlfaPay;
+﻿namespace Tgs.Payment.AlfaPay.Client;
 
 public record AlfaPayDepositSettings(
     string ApiToken,
     string NotifyToken,
-    Guid OrderNo,
+    Guid FormId,
     string? PaidName);

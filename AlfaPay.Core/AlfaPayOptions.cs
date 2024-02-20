@@ -2,11 +2,9 @@
 
 public class AlfaPayOptions
 {
-    public string CallbackBaseUrl { get; set; } = default!;
+    public required Uri CallbackBaseUrl { get; set; }
 
-    public string NatsUrl { get; set; } = default!;
+    public required Uri PaymentApiUrl { get; set; }
 
-    public Uri PaymentApiUrl { get; set; } = default!;
-
-    public Uri PaymentServiceBaseUrl { get; set; } = default!;
+    public required Uri PaymentServiceBaseUrl { get; set; }
 }

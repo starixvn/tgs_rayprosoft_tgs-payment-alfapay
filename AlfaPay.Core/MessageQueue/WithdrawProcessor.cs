@@ -1,63 +1,57 @@
 ﻿using Google.Protobuf;
 using Microsoft.Extensions.Options;
-using Tgs.MessageQueue;
+using Valhalla.MessageQueue;
 using Tgs.Payment.Clients;
 using Tgs.Payment.Protos;
+using System.Text.Json;
+using Tgs.Payment.AlfaPay.Client;
 
 namespace Tgs.Payment.AlfaPay.MessageQueue;
 
-internal class WithdrawProcessor : IMessageProcessor
+internal class WithdrawProcessor(
+    AlfaPayClient alfaPayClient,
+    IOptions<AlfaPayOptions> optionsAccessor,
+    IPaymentClient paymentClient) : IMessageProcessor<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>>
 {
-    private readonly IAlfaPayClient _alfaPayClient;
-    private readonly AlfaPaySerializer _alfaPaySerializer;
-    private readonly IPaymentClient _paymentClient;
-    private readonly AlfaPayOptions _options;
+    private readonly AlfaPayClient _alfaPayClient = alfaPayClient ?? throw new ArgumentNullException(nameof(alfaPayClient));
+    private readonly IPaymentClient _paymentClient = paymentClient ?? throw new ArgumentNullException(nameof(paymentClient));
+    private readonly AlfaPayOptions _options = optionsAccessor.Value;
 
-    public WithdrawProcessor(
-        IAlfaPayClient alfaPayClient,
-        AlfaPaySerializer alfaPaySerializer,
-        IOptions<AlfaPayOptions> optionsAccessor,
-        IPaymentClient paymentClient)
-    {
-        _alfaPayClient = alfaPayClient ?? throw new ArgumentNullException(nameof(alfaPayClient));
-        _alfaPaySerializer = alfaPaySerializer ?? throw new ArgumentNullException(nameof(alfaPaySerializer));
-        _paymentClient = paymentClient ?? throw new ArgumentNullException(nameof(paymentClient));
-        _options = optionsAccessor.Value;
-    }
-
-    public async ValueTask<ReadOnlyMemory<byte>> HandleAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
+    public async ValueTask<ReadOnlyMemory<byte>> HandleAsync(
+        string subject,
+        ReadOnlyMemory<byte> data,
+        IEnumerable<MessageHeaderValue>? headerValues,
+        CancellationToken cancellationToken = default)
     {
         var request = WithdrawRequest.Parser.ParseFrom(data.Span);
-        var settings = _alfaPaySerializer.Deserialize<AlfaPayWithdrawSettings>(request.ApplyInfo)!;
+        var settings = JsonSerializer.Deserialize<AlfaPayWithdrawSettings>(request.ApplyInfo, AlfaPayUtility.SerializerOptions)!;
 
-        var order = new WithdrawOrder
-        {
-            AccountNumber = settings.AccountNumber,
-            Amount = decimal.Parse(request.Amount),
-            BankId = settings.BankId,
-            BankOwner = settings.BankOwner,
-            CallbackUrl = $"{_options.CallbackBaseUrl}/withdraw/callback",
-            OutTradeNo = settings.FormId.ToString(),
-        };
+        var order = new WithdrawOrder(
+            settings.FormId,
+            decimal.Parse(request.Amount),
+            new Uri($"{_options.CallbackBaseUrl}/withdraw/callback"),
+            settings.BankId,
+            settings.BankOwner,
+            settings.AccountNumber);
 
-        var response = await _alfaPayClient
-            .WithdrawAsync(settings.ApiToken, settings.NotifyToken, order)
+        var withdrawResponse = await _alfaPayClient
+            .WithdrawAsync(settings.ApiToken, settings.NotifyToken, order, cancellationToken)
             .ConfigureAwait(false);
 
-        var applyInfo = new AlfaPayWithdrawApplyInfo(settings, response);
-
-        var thirdPartyOrderNo = applyInfo.Response.Data!.TradeNo;
+        var applyInfo = new AlfaPayWithdrawApplyInfo(
+            settings,
+            new AlfaPayWithdrawResponse(withdrawResponse.FormId, withdrawResponse.ThirdPartyOrderNo));
 
         await _paymentClient
             .SaveWithdrawFormThirdPartyOrderNoAsync(
                 settings.FormId,
-                thirdPartyOrderNo,
+                withdrawResponse.ThirdPartyOrderNo,
                 cancellationToken)
             .ConfigureAwait(false);
 
         var msg = new WithdrawResponse
         {
-            Result = _alfaPaySerializer.Serialize(applyInfo)
+            Result = JsonSerializer.Serialize(applyInfo, AlfaPayUtility.SerializerOptions)
         };
 
         return msg.ToByteArray();

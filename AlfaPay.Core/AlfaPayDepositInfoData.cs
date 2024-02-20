@@ -2,7 +2,7 @@
 
 namespace Tgs.Payment.AlfaPay;
 
-internal record AlfaPayDepositInfoData(Guid TradeNo, string OutTradeNo, string Amount, decimal RequestAmount, string State)
+public record AlfaPayDepositInfoData(Guid TradeNo, string OutTradeNo, string Amount, decimal RequestAmount, string State)
 {
     /// <summary>
     /// 平台订单号
