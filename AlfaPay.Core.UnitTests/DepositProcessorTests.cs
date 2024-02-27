@@ -80,10 +80,10 @@ public class DepositProcessorTests
         // Act
         var actual = await sut.HandleAsync(
             "tgs.payment.alfapay.deposit",
-            request.ToByteArray(),
+            request,
             null);
-        var response = DepositResponse.Parser.ParseFrom(actual.Span);
-        var applyInfo = JsonSerializer.Deserialize<AlfaPayDepositApplyInfo>(response.Result, AlfaPayUtility.SerializerOptions);
+
+        var applyInfo = JsonSerializer.Deserialize<AlfaPayDepositApplyInfo>(actual.Result, AlfaPayUtility.SerializerOptions);
 
         // Assert
         _ = fakePaymentClient.Received(1)

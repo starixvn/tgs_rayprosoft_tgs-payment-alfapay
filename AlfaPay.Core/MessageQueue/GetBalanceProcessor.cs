@@ -9,7 +9,11 @@ internal class GetBalanceProcessor(
     AlfaPayClient alfaPayClient)
     : IMessageProcessor<PaymentBalanceRequest, PaymentBalanceResponse>
 {
-    public async ValueTask<PaymentBalanceResponse> HandleAsync(string subject, PaymentBalanceRequest data, IEnumerable<MessageHeaderValue>? headerValues, CancellationToken cancellationToken = default)
+    public async ValueTask<PaymentBalanceResponse> HandleAsync(
+        string subject,
+        PaymentBalanceRequest data,
+        IEnumerable<MessageHeaderValue>? headerValues,
+        CancellationToken cancellationToken = default)
     {
         var settings = JsonSerializer.Deserialize<BrandPaymentMerchantInfo>(
             data.BrandPaymentSettings,

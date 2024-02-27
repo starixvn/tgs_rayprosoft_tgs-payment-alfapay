@@ -1,40 +1,37 @@
-﻿using Google.Protobuf;
+﻿using System.Text.Json;
 using Microsoft.Extensions.Options;
-using Valhalla.MessageQueue;
+using Tgs.Payment.AlfaPay.Client;
 using Tgs.Payment.Clients;
 using Tgs.Payment.Protos;
-using System.Text.Json;
-using Tgs.Payment.AlfaPay.Client;
+using Valhalla.MessageQueue;
 
 namespace Tgs.Payment.AlfaPay.MessageQueue;
 
 internal class DepositProcessor(
     IPaymentClient paymentClient,
     AlfaPayClient alfaPayClient,
-    IOptions<AlfaPayOptions> optionsAccessor) : IMessageProcessor<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>>
+    IOptions<AlfaPayOptions> optionsAccessor)
+    : IMessageProcessor<DepositRequest, DepositResponse>
 {
-    private readonly IPaymentClient _paymentClient = paymentClient ?? throw new ArgumentNullException(nameof(paymentClient));
-    private readonly AlfaPayClient _alfaPayClient = alfaPayClient ?? throw new ArgumentNullException(nameof(alfaPayClient));
     private readonly AlfaPayOptions _options = optionsAccessor.Value;
 
-    public async ValueTask<ReadOnlyMemory<byte>> HandleAsync(
+    public async ValueTask<DepositResponse> HandleAsync(
         string subject,
-        ReadOnlyMemory<byte> data,
+        DepositRequest data,
         IEnumerable<MessageHeaderValue>? headerValues,
         CancellationToken cancellationToken = default)
     {
-        var request = DepositRequest.Parser.ParseFrom(data.Span);
         var settings = JsonSerializer.Deserialize<AlfaPayDepositSettings>(
-            request.ApplyInfo,
+            data.ApplyInfo,
             AlfaPayUtility.SerializerOptions)!;
 
         var order = new DepositOrder(
-            decimal.Parse(request.Amount),
+            decimal.Parse(data.Amount),
             settings.FormId,
             new Uri($"{_options.CallbackBaseUrl}/deposit/callback"),
             settings.PaidName);
 
-        var depositResponse = await _alfaPayClient
+        var depositResponse = await alfaPayClient
             .DepositAsync(settings.ApiToken, order, cancellationToken)
             .ConfigureAwait(false);
 
@@ -46,17 +43,15 @@ internal class DepositProcessor(
                 depositResponse.RedirectUrl,
                 depositResponse.ThirdPartyOrderNo));
 
-        await _paymentClient.ScheduleAsync(
+        await paymentClient.ScheduleAsync(
             "tgs.payment.alfapay.deposit.schedule.reject",
             settings.FormId,
             DateTime.UtcNow.AddMinutes(15D).ToUniversalTime(),
             cancellationToken).ConfigureAwait(false);
 
-        var msg = new DepositResponse
+        return new DepositResponse
         {
             Result = JsonSerializer.Serialize(applyInfo, AlfaPayUtility.SerializerOptions)
         };
-
-        return msg.ToByteArray();
     }
 }

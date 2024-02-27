@@ -86,10 +86,10 @@ public class WithdrawProcessorTests
         // Act
         var actual = await sut.HandleAsync(
             "tgs.payment.alfapay.withdraw",
-            request.ToByteArray(),
+            request,
             null);
-        var response = WithdrawResponse.Parser.ParseFrom(actual.Span);
-        var applyInfo = JsonSerializer.Deserialize<AlfaPayWithdrawApplyInfo>(response.Result, AlfaPayUtility.SerializerOptions);
+        
+        var applyInfo = JsonSerializer.Deserialize<AlfaPayWithdrawApplyInfo>(actual.Result, AlfaPayUtility.SerializerOptions);
 
         // Assert
         _ = fakePaymentClient.Received(1)
