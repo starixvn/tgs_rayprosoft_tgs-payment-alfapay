@@ -86,7 +86,7 @@ public class DepositTimeoutTests
         // Act
         await sut.HandleAsync(
             "tgs.payment.alfapay.deposit.schedule.reject",
-            request.ToByteArray(),
+            request,
             null);
 
         // Assert
@@ -166,7 +166,7 @@ public class DepositTimeoutTests
         // Act
         await sut.HandleAsync(
             "tgs.payment.alfapay.deposit.schedule.reject",
-            request.ToByteArray(),
+            request,
             null);
 
         // Assert

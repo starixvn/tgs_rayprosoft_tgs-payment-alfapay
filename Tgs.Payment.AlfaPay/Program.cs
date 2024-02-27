@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.HttpLogging;
+﻿using FluentdForward.OpenTelemetry.MessagePack;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.Extensions.Options;
 using NATS.Client.Core;
 using OpenTelemetry.Instrumentation.AspNetCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Tgs.MessageQueue.Nats.Serializers;
 using Tgs.Payment.AlfaPay;
 using Tgs.Payment.AlfaPay.MessageQueue;
 
@@ -20,7 +22,9 @@ builder.Logging
             var nodeIp = builder.Configuration.GetValue<string>("NODE_IP")!;
             fluentOptions.Host = nodeIp;
             fluentOptions.Tag = builder.Configuration.GetValue<string>("OTEL_SERVICE_NAME")!;
-            fluentOptions.UseMessagePack();
+            fluentOptions.UseMessagePack(LogRecordFormatterResolver.GetResolverInstanceWithExtendInfo(
+                "MachineName",
+                () => Environment.MachineName));
         });
     });
 
@@ -51,7 +55,8 @@ builder.Services
     .AddKeyedSingleton("Nats",
     (sp, _) => new NatsConnection(NatsOpts.Default with
     {
-        Url = builder.Configuration.GetConnectionString("Nats")!
+        Url = builder.Configuration.GetConnectionString("Nats")!,
+        SerializerRegistry = TgsNatsSerializerRegistration.Default
     }))
     .AddMessageQueue()
     .AddNatsMessageQueue(natsConfig => natsConfig

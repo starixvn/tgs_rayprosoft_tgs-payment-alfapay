@@ -11,23 +11,27 @@ internal class DepositTimeoutHandler(
     IPaymentServiceClient paymentServiceClient,
     IPaymentClient paymentClient,
     AlfaPayClient alfaPayClient,
-    ILogger<DepositTimeoutHandler> logger) : IMessageHandler<ReadOnlyMemory<byte>>
+    ILogger<DepositTimeoutHandler> logger)
+    : IMessageHandler<ScheduleRequest>
 {
     private readonly IPaymentServiceClient _paymentServiceClient = paymentServiceClient ?? throw new ArgumentNullException(nameof(paymentServiceClient));
     private readonly IPaymentClient _paymentClient = paymentClient ?? throw new ArgumentNullException(nameof(paymentClient));
     private readonly AlfaPayClient _alfaPayClient = alfaPayClient ?? throw new ArgumentNullException(nameof(alfaPayClient));
     private readonly ILogger<DepositTimeoutHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    public async ValueTask HandleAsync(string subject, ReadOnlyMemory<byte> data, IEnumerable<MessageHeaderValue>? headerValues, CancellationToken cancellationToken = default)
+    public async ValueTask HandleAsync(
+        string subject,
+        ScheduleRequest data,
+        IEnumerable<MessageHeaderValue>? headerValues,
+        CancellationToken cancellationToken = default)
     {
-        var request = ScheduleRequest.Parser.ParseFrom(data.Span);
         _logger.LogInformation(
             "Deposit Schedule Handler Receive request Form Id:{request.FormId.ToGuid()}, "
                 + "Schedule Time:{request.ScheduleTime.ToDateTime():yyyy/MM/dd HH:mm:ss}",
-            request.FormId.ToGuid(),
-            request.ScheduleTime.ToDateTime());
+            data.FormId.ToGuid(),
+            data.ScheduleTime.ToDateTime());
 
-        var formId = request.FormId.ToGuid();
+        var formId = data.FormId.ToGuid();
 
         try
         {
@@ -37,7 +41,7 @@ internal class DepositTimeoutHandler(
 
             if (depositForm is null)
             {
-                _logger.LogWarning("Deposit Form {request.FormId.ToGuid()} not found.", request.FormId.ToGuid());
+                _logger.LogWarning("Deposit Form {request.FormId.ToGuid()} not found.", data.FormId.ToGuid());
                 return;
             }
 
