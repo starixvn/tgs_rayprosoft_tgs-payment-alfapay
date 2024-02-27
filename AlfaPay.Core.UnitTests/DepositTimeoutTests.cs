@@ -1,10 +1,12 @@
-﻿using System.Text.Json;
+﻿using System.Net;
+using System.Text.Json;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using RichardSzalay.MockHttp;
 using Tgs.Payment.AlfaPay;
+using Tgs.Payment.AlfaPay.Client;
 using Tgs.Payment.AlfaPay.MessageQueue;
 using Tgs.Payment.Clients;
 using Tgs.Payment.Protos;
@@ -14,301 +16,165 @@ namespace AlfaPay.Core.UnitTests;
 public class DepositTimeoutTests
 {
     [Fact]
-    public async Task 當AlfaPay代收接口查詢回傳狀態是timeout時若GMS存款單仍在等待付款時將會拒絕存款單()
+    public async Task 檢查已經申請十五分鐘的單子是否已經完成()
     {
-    //    var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
-    //    var fakePaymentClient = Substitute.For<IPaymentClient>();
+        // Arrange
+        var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
 
-    //    var mockHttp = new MockHttpMessageHandler();
+        var mockHttp = new MockHttpMessageHandler();
 
-    //    var httpClient = mockHttp.ToHttpClient();
-    //    httpClient.BaseAddress = new Uri("https://alfapay63.com");
+        var httpClient = mockHttp.ToHttpClient();
+        httpClient.BaseAddress = new Uri("https://alfapay63.com");
 
-    //    var fakeAlfaPayClient = new AlfaPayClient(httpClient, new AlfaPayHasher(NullLogger<AlfaPayHasher>.Instance), NullLogger<AlfaPayClient>.Instance);
+        var fakeAlfaPayClient = new AlfaPayClient(httpClient, new AlfaPayHasher(NullLogger<AlfaPayHasher>.Instance), NullLogger<AlfaPayClient>.Instance);
 
-    //    var fakeLogger = new NullLogger<DepositTimeoutHandler>();
+        var fakePaymentClient = Substitute.For<IPaymentClient>();
 
-    //    var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, fakeLogger);
+        var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, NullLogger<DepositTimeoutHandler>.Instance);
 
-    //    var formId = Guid.NewGuid();
-    //    var brandId = Guid.NewGuid();
-    //    var apiToken = "apiToken";
+        var formId = Guid.Parse("1091386e-c9cc-4152-95fa-dfcf73c08026");
+        var brandId = Guid.Parse("4e86719f-243f-46f6-b010-5c758b7285af");
+        var request = new ScheduleRequest
+        {
+            FormId = formId,
+            Subject = "tgs.payment.alfapay.deposit.schedule.reject",
+            ScheduleTime = Timestamp.FromDateTime(DateTime.UtcNow)
+        };
 
-    //    var depositFormInfo = new DepositFormInfo
-    //    {
-    //        Id = formId,
-    //        BrandId = brandId,
-    //        Status = PaymentFlowState.WaitPayment,
-    //        ApplyInfo = JsonSerializer.Serialize(new AlfaPayDepositApplyInfo(
-    //            new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
-    //            new AlfaPayDepositResponse()), AlfaPayUtility.SerializerOptions)
-    //    };
+        var applyInfo = new AlfaPayDepositApplyInfo(
+            new AlfaPayDepositSettings(
+                "A2B0ZGwcPXFw8YB84mSrXnVVGQnwTImulmRxvXmsWxMKXaWBv2d3NbcwGxLc",
+                "DzBwQEyXd2OZZ8IFWrQCWunnmd0vZHqrKeKOaxxNe2gpS5ZSYx2KdFext74J",
+                formId,
+                null),
+            new AlfaPayDepositResponse(
+                500m,
+                formId,
+                new Uri("https://payhub1255.com/r/dmp/6c46b82e-4c30-4388-924a-2a1ef111731b"),
+                "6c46b82e-4c30-4388-924a-2a1ef111731b"));
 
-    //    _ = fakePaymentServiceClient
-    //        .GetDepositFormAsync(formId)
-    //        .Returns(depositFormInfo);
+        _ = fakePaymentServiceClient.GetDepositFormAsync(Arg.Is(request.FormId.ToGuid()))
+            .Returns(new DepositFormInfo
+            {
+                Id = formId,
+                Amount = 500m,
+                BrandId = brandId,
+                ApplyInfo = JsonSerializer.Serialize(applyInfo, AlfaPayUtility.SerializerOptions)
+            });
 
-    //    var alfaPayDepositInfoData = new AlfaPayDepositInfoData(
-    //        Guid.Parse("5d6a00ef-798c-4f53-927c-10295e658b6a"),
-    //        formId.ToString(),
-    //        "1680.00",
-    //        1680M,
-    //        "timeout");
+        var apiToken = "A2B0ZGwcPXFw8YB84mSrXnVVGQnwTImulmRxvXmsWxMKXaWBv2d3NbcwGxLc";
 
-    //    _ = mockHttp.When($"https://alfapay63.com/api/transaction/{formId}")
-    //        .Respond(new StringContent("""
-				//{
-				//    "data": {
-				//        "trade_no": "e41840c9-a792-482f-ab4d-b0dca0489757",
-				//        "out_trade_no": "0ff96c9d-d3f7-467f-90d2-9917820e89bf",
-				//        "amount": 200000,
-				//        "request_amount": 200000,
-				//        "state": "timeout"
-				//    },
-				//    "success": true
-				//}
-				//"""));
+        _ = mockHttp.Expect(HttpMethod.Get, $"https://alfapay63.com/api/transaction/{formId}")
+            .WithHeaders(new Dictionary<string, string>
+            {
+                { "Accept", "application/json" },
+                { "Authorization", $"Bearer {apiToken}" }
+            })
+            .Respond(HttpStatusCode.OK, new StringContent("""
+                {
+                    "data": {
+                        "trade_no": "6c46b82e-4c30-4388-924a-2a1ef111731b",
+                        "out_trade_no": "1091386e-c9cc-4152-95fa-dfcf73c08026",
+                        "amount": "500.00",
+                        "request_amount": 500,
+                        "state": "timeout"
+                    },
+                    "success": true
+                }
+                """));
 
-    //    var request = new ScheduleRequest
-    //    {
-    //        Subject = "tgs.payment.alfapay.deposit.schedule.reject",
-    //        FormId = formId,
-    //        ScheduleTime = DateTime.UtcNow.ToTimestamp(),
-    //    };
+        // Act
+        await sut.HandleAsync(
+            "tgs.payment.alfapay.deposit.schedule.reject",
+            request.ToByteArray(),
+            null);
 
-    //    await sut.HandleAsync(
-    //        "tgs.payment.alfapay.deposit.schedule.reject",
-    //        request.ToByteArray(),
-    //        null);
-
-    //    _ = fakePaymentClient.Received(1).RejectDepositAsync(formId, brandId);
+        // Assert
+        _ = fakePaymentClient
+            .Received(1)
+            .RejectDepositAsync(Arg.Is(formId), Arg.Is(brandId));
     }
 
     [Fact]
     public async Task 當AlfaPay代收接口查詢回傳狀態是processing時若GMS存款單狀態仍在等待付款時將會重新計時()
     {
-        //var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
-        //var fakePaymentClient = Substitute.For<IPaymentClient>();
-        //var mockHttp = new MockHttpMessageHandler();
+        // Arrange
+        var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
 
-        //var httpClient = mockHttp.ToHttpClient();
-        //httpClient.BaseAddress = new Uri("https://alfapay63.com");
+        var mockHttp = new MockHttpMessageHandler();
 
-        //var fakeAlfaPayClient = new AlfaPayClient(httpClient, new AlfaPayHasher(NullLogger<AlfaPayHasher>.Instance), NullLogger<AlfaPayClient>.Instance);
+        var httpClient = mockHttp.ToHttpClient();
+        httpClient.BaseAddress = new Uri("https://alfapay63.com");
 
-        //var fakeLogger = new NullLogger<DepositTimeoutHandler>();
+        var fakeAlfaPayClient = new AlfaPayClient(httpClient, new AlfaPayHasher(NullLogger<AlfaPayHasher>.Instance), NullLogger<AlfaPayClient>.Instance);
 
-        //var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, fakeLogger);
+        var fakePaymentClient = Substitute.For<IPaymentClient>();
 
-        //var formId = Guid.NewGuid();
-        //var brandId = Guid.NewGuid();
-        //var apiToken = "apiToken";
+        var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, NullLogger<DepositTimeoutHandler>.Instance);
 
-        //var depositFormInfo = new DepositFormInfo
-        //{
-        //    Id = formId,
-        //    BrandId = brandId,
-        //    Status = PaymentFlowState.WaitPayment,
-        //    ApplyInfo = JsonSerializer.Serialize(
-        //        new AlfaPayDepositApplyInfo(
-        //            new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
-        //            new AlfaPayDepositResponse()),
-        //        AlfaPayUtility.SerializerOptions)
-        //};
+        var formId = Guid.Parse("1091386e-c9cc-4152-95fa-dfcf73c08026");
+        var brandId = Guid.Parse("4e86719f-243f-46f6-b010-5c758b7285af");
+        var request = new ScheduleRequest
+        {
+            FormId = formId,
+            Subject = "tgs.payment.alfapay.deposit.schedule.reject",
+            ScheduleTime = Timestamp.FromDateTime(DateTime.UtcNow)
+        };
 
-        //_ = fakePaymentServiceClient
-        //    .GetDepositFormAsync(formId)
-        //    .Returns(depositFormInfo);
+        var applyInfo = new AlfaPayDepositApplyInfo(
+            new AlfaPayDepositSettings(
+                "A2B0ZGwcPXFw8YB84mSrXnVVGQnwTImulmRxvXmsWxMKXaWBv2d3NbcwGxLc",
+                "DzBwQEyXd2OZZ8IFWrQCWunnmd0vZHqrKeKOaxxNe2gpS5ZSYx2KdFext74J",
+                formId,
+                null),
+            new AlfaPayDepositResponse(
+                500m,
+                formId,
+                new Uri("https://payhub1255.com/r/dmp/6c46b82e-4c30-4388-924a-2a1ef111731b"),
+                "6c46b82e-4c30-4388-924a-2a1ef111731b"));
 
-        //var alfaPayDepositInfoData = new AlfaPayDepositInfoData(
-        //    Guid.Parse("5d6a00ef-798c-4f53-927c-10295e658b6a"),
-        //    formId.ToString(),
-        //    "1680.00",
-        //    1680M,
-        //    "processing");
+        _ = fakePaymentServiceClient.GetDepositFormAsync(Arg.Is(request.FormId.ToGuid()))
+            .Returns(new DepositFormInfo
+            {
+                Id = formId,
+                Amount = 500m,
+                BrandId = brandId,
+                ApplyInfo = JsonSerializer.Serialize(applyInfo, AlfaPayUtility.SerializerOptions)
+            });
 
-        //_ = fakeAlfaPayClient
-        //    .QueryDepositFormAsync(apiToken, formId)
-        //    .Returns(new AlfaPayClientDepositInfo(true, alfaPayDepositInfoData));
+        var apiToken = "A2B0ZGwcPXFw8YB84mSrXnVVGQnwTImulmRxvXmsWxMKXaWBv2d3NbcwGxLc";
 
-        //var subject = "tgs.payment.alfapay.deposit.schedule.reject";
+        _ = mockHttp.Expect(HttpMethod.Get, $"https://alfapay63.com/api/transaction/{formId}")
+            .WithHeaders(new Dictionary<string, string>
+            {
+                { "Accept", "application/json" },
+                { "Authorization", $"Bearer {apiToken}" }
+            })
+            .Respond(HttpStatusCode.OK, new StringContent("""
+                {
+                    "data": {
+                        "trade_no": "6c46b82e-4c30-4388-924a-2a1ef111731b",
+                        "out_trade_no": "1091386e-c9cc-4152-95fa-dfcf73c08026",
+                        "amount": "500.00",
+                        "request_amount": 500,
+                        "state": "processing"
+                    },
+                    "success": true
+                }
+                """));
 
-        //var request = new ScheduleRequest
-        //{
-        //    Subject = subject,
-        //    FormId = formId,
-        //    ScheduleTime = DateTime.UtcNow.ToTimestamp(),
-        //};
+        // Act
+        await sut.HandleAsync(
+            "tgs.payment.alfapay.deposit.schedule.reject",
+            request.ToByteArray(),
+            null);
 
-        //await sut.HandleAsync(
-        //   "tgs.payment.alfapay.deposit.schedule.reject",
-        //    request.ToByteArray(),
-        //    null);
-
-        //_ = fakePaymentClient
-        //    .Received(1)
-        //    .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
-    }
-
-    [Fact]  
-    public async Task 若GMS存款單狀態為Reject將不繼續執行()
-    {
-        //var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
-        //var fakePaymentClient = Substitute.For<IPaymentClient>();
-        //var mockHttp = new MockHttpMessageHandler();
-
-        //var httpClient = mockHttp.ToHttpClient();
-        //httpClient.BaseAddress = new Uri("https://alfapay63.com");
-
-        //var fakeAlfaPayClient = new AlfaPayClient(httpClient, new AlfaPayHasher(NullLogger<AlfaPayHasher>.Instance), NullLogger<AlfaPayClient>.Instance);
-
-        //var fakeLogger = new NullLogger<DepositTimeoutHandler>();
-
-        //var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, fakeLogger);
-
-        //var formId = Guid.NewGuid();
-        //var brandId = Guid.NewGuid();
-        //var apiToken = "apiToken";
-
-        //var depositFormInfo = new DepositFormInfo
-        //{
-        //    Id = formId,
-        //    BrandId = brandId,
-        //    Status = PaymentFlowState.Reject,
-        //    ApplyInfo = JsonSerializer.Serialize(
-        //        new AlfaPayDepositApplyInfo(
-        //            new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
-        //            new AlfaPayDepositResponse()),
-        //        AlfaPayUtility.SerializerOptions)
-        //};
-
-        //_ = fakePaymentServiceClient
-        //    .GetDepositFormAsync(formId)
-        //    .Returns(depositFormInfo);
-
-        //var subject = "tgs.payment.alfapay.deposit.schedule.reject";
-
-        //var request = new ScheduleRequest
-        //{
-        //    Subject = subject,
-        //    FormId = formId,
-        //    ScheduleTime = DateTime.UtcNow.ToTimestamp(),
-        //};
-
-        //await sut.HandleAsync(
-        //    "tgs.payment.alfapay.deposit.schedule.reject",
-        //    request.ToByteArray(),
-        //    null);
-
-        //_ = fakePaymentClient
-        //    .Received(0)
-        //    .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
-    }
-
-    [Fact]
-    public async Task 若GMS存款單狀態為Approved將不繼續執行()
-    {
-        //var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
-        //var fakePaymentClient = Substitute.For<IPaymentClient>();
-        //var mockHttp = new MockHttpMessageHandler();
-
-        //var httpClient = mockHttp.ToHttpClient();
-        //httpClient.BaseAddress = new Uri("https://alfapay63.com");
-
-        //var fakeAlfaPayClient = new AlfaPayClient(httpClient, new AlfaPayHasher(NullLogger<AlfaPayHasher>.Instance), NullLogger<AlfaPayClient>.Instance);
-
-        //var fakeLogger = new NullLogger<DepositTimeoutHandler>();
-
-        //var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, fakeLogger);
-
-        //var formId = Guid.NewGuid();
-        //var brandId = Guid.NewGuid();
-        //var apiToken = "apiToken";
-
-        //var depositFormInfo = new DepositFormInfo
-        //{
-        //    Id = formId,
-        //    BrandId = brandId,
-        //    Status = PaymentFlowState.Approved,
-        //    ApplyInfo = JsonSerializer.Serialize(
-        //        new AlfaPayDepositApplyInfo(
-        //            new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
-        //            new AlfaPayDepositResponse()),
-        //        AlfaPayUtility.SerializerOptions)
-        //};
-
-        //_ = fakePaymentServiceClient
-        //    .GetDepositFormAsync(formId)
-        //    .Returns(depositFormInfo);
-
-        //var subject = "tgs.payment.alfapay.deposit.schedule.reject";
-
-        //var request = new ScheduleRequest
-        //{
-        //    Subject = subject,
-        //    FormId = formId,
-        //    ScheduleTime = DateTime.UtcNow.ToTimestamp(),
-        //};
-
-        //await sut.HandleAsync(
-        //    "tgs.payment.alfapay.deposit.schedule.reject",
-        //    request.ToByteArray(),
-        //    null);
-
-        //_ = fakePaymentClient
-        //    .Received(0)
-        //    .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
-    }
-
-    [Fact]
-    public async Task 若GMS存款單狀態為Paid將不繼續執行()
-    {
-        //var fakePaymentServiceClient = Substitute.For<IPaymentServiceClient>();
-        //var fakePaymentClient = Substitute.For<IPaymentClient>();
-        //var mockHttp = new MockHttpMessageHandler();
-
-        //var httpClient = mockHttp.ToHttpClient();
-        //httpClient.BaseAddress = new Uri("https://alfapay63.com");
-
-        //var fakeAlfaPayClient = new AlfaPayClient(httpClient, new AlfaPayHasher(NullLogger<AlfaPayHasher>.Instance), NullLogger<AlfaPayClient>.Instance);
-        //var fakeLogger = new NullLogger<DepositTimeoutHandler>();
-
-        //var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, fakeLogger);
-
-        //var formId = Guid.NewGuid();
-        //var brandId = Guid.NewGuid();
-        //var apiToken = "apiToken";
-
-        //var depositFormInfo = new DepositFormInfo
-        //{
-        //    Id = formId,
-        //    BrandId = brandId,
-        //    Status = PaymentFlowState.Paid,
-        //    ApplyInfo = JsonSerializer.Serialize(new AlfaPayDepositApplyInfo(
-        //        new AlfaPayDepositSettings(apiToken, "notifyToken", formId, null),
-        //        new AlfaPayDepositResponse()), AlfaPayUtility.SerializerOptions)
-        //};
-
-        //_ = fakePaymentServiceClient
-        //    .GetDepositFormAsync(formId)
-        //    .Returns(depositFormInfo);
-
-        //var subject = "tgs.payment.alfapay.deposit.schedule.reject";
-
-        //var request = new ScheduleRequest
-        //{
-        //    Subject = subject,
-        //    FormId = formId,
-        //    ScheduleTime = DateTime.UtcNow.ToTimestamp(),
-        //};
-
-        //await sut.HandleAsync(
-        //    "tgs.payment.alfapay.deposit.schedule.reject",
-        //    request.ToByteArray(),
-        //    null);
-
-        //_ = fakePaymentClient
-        //    .Received(0)
-        //    .ScheduleAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<DateTime>());
+        // Assert
+        _ = fakePaymentClient
+            .Received(1)
+            .ScheduleAsync(
+                Arg.Is("tgs.payment.alfapay.deposit.schedule.reject"),
+                Arg.Is(request.FormId.ToGuid()),
+                Arg.Any<DateTime>());
     }
 }
