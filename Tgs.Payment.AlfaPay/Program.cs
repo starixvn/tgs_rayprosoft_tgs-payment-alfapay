@@ -67,7 +67,11 @@ builder.Services
         .AddHandler(
             ProcessorTypes.DepositTimeoutHandlerType,
             "tgs.payment.alfapay.deposit.schedule.reject",
-            "tgs.payment.alfapay.deposit.schedule.reject"))
+            "tgs.payment.alfapay.deposit.schedule.reject")
+        .AddProcessor(
+            ProcessorTypes.GetBalanceProcessorType,
+            "tgs.payment.alfapay.balance",
+            "tgs.payment.alfapay.balance"))
     .AddNatsGlobPatternExchange("*");
 
 builder.Services
