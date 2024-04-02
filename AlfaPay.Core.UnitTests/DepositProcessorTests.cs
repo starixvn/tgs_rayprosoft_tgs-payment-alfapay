@@ -43,7 +43,8 @@ public class DepositProcessorTests
         var sut = new DepositProcessor(
             fakePaymentClient,
             fakeAlfaPayClient,
-            new OptionsWrapper<AlfaPayOptions>(options));
+            new OptionsWrapper<AlfaPayOptions>(options),
+            NullLogger<DepositProcessor>.Instance);
 
         var applySettings = new AlfaPayDepositSettings(
             apiToken,

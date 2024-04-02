@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tgs.Payment.AlfaPay.Client;
 using Tgs.Payment.Clients;
@@ -10,7 +11,8 @@ namespace Tgs.Payment.AlfaPay.MessageQueue;
 internal class DepositProcessor(
     IPaymentClient paymentClient,
     AlfaPayClient alfaPayClient,
-    IOptions<AlfaPayOptions> optionsAccessor)
+    IOptions<AlfaPayOptions> optionsAccessor,
+    ILogger<DepositProcessor> logger)
     : IMessageProcessor<DepositRequest, DepositResponse>
 {
     private readonly AlfaPayOptions _options = optionsAccessor.Value;
@@ -21,6 +23,8 @@ internal class DepositProcessor(
         IEnumerable<MessageHeaderValue>? headerValues,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("{DepositApplyInfo}", data.ApplyInfo);
+
         var settings = JsonSerializer.Deserialize<AlfaPayDepositSettings>(
             data.ApplyInfo,
             AlfaPayUtility.SerializerOptions)!;
