@@ -79,6 +79,7 @@ builder.Services
             "tgs.payment.alfapay.balance"))
     .AddNatsGlobPatternExchange("*");
 
+var excludeExtensions = new[] { "html", "ico", "png", "jpg" };
 builder.Services
     .AddProfileViewer()
     .AddHttpLogging(logging =>
@@ -111,7 +112,7 @@ builder.Services
             && !httpContext.Request.Path.StartsWithSegments("/healthz")
             && !httpContext.Request.Path.StartsWithSegments("/metrics")
             && !httpContext.Request.Path.StartsWithSegments("/profiler/")
-            && !new[] { "html", "ico", "png", "jpg" }.Any(
+            && !excludeExtensions.Any(
                 ext => httpContext.Request.Path.Value.EndsWith($".{ext}")));
 
 var app = builder.Build();
