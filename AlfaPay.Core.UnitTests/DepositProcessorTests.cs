@@ -32,6 +32,7 @@ public class DepositProcessorTests
         var fakePaymentClient = Substitute.For<IPaymentClient>();
         var options = new AlfaPayOptions
         {
+            PaymentCode = "AlfaPay",
             CallbackBaseUrl = new Uri("https://dev-payment.rpgp.cc/alfapay"),
             PaymentApiUrl = new Uri("https://alfapay63.com"),
             PaymentServiceBaseUrl = new Uri("http://localhost:5541")

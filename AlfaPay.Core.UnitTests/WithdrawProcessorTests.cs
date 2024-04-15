@@ -32,6 +32,7 @@ public class WithdrawProcessorTests
         var fakePaymentClient = Substitute.For<IPaymentClient>();
         var options = new AlfaPayOptions
         {
+            PaymentCode = "AlfaPay",
             CallbackBaseUrl = new Uri("https://dev-payment.rpgp.cc/alfapay"),
             PaymentApiUrl = new Uri("https://alfapay63.com"),
             PaymentServiceBaseUrl = new Uri("http://localhost:5541")
@@ -88,7 +89,7 @@ public class WithdrawProcessorTests
             "tgs.payment.alfapay.withdraw",
             request,
             null);
-        
+
         var applyInfo = JsonSerializer.Deserialize<AlfaPayWithdrawApplyInfo>(actual.Result, AlfaPayUtility.SerializerOptions);
 
         // Assert

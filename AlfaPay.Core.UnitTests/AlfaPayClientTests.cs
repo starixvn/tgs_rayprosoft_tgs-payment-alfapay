@@ -8,7 +8,7 @@ namespace AlfaPay.Core.UnitTests;
 public class AlfaPayClientTests
 {
     [Fact]
-    public void 代收接口_通道尚未配置()
+    public async Task 代收接口_通道尚未配置()
     {
         var mockHttp = new MockHttpMessageHandler();
         var httpClient = mockHttp.ToHttpClient();
@@ -42,7 +42,7 @@ public class AlfaPayClientTests
             new Uri("https://dev-payment.rpgp.cc/alfapay/deposit/callback"),
             null);
 
-        _ = Assert.ThrowsAsync<ApiFailException>(async () => await sut.DepositAsync(apiToken, order));
+        _ = await Assert.ThrowsAsync<ApiFailException>(async () => await sut.DepositAsync(apiToken, order));
     }
 
     [Fact]

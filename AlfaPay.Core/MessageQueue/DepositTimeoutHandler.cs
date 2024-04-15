@@ -1,9 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
-using Valhalla.MessageQueue;
+﻿using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Tgs.Payment.AlfaPay.Client;
 using Tgs.Payment.Clients;
 using Tgs.Payment.Protos;
-using System.Text.Json;
-using Tgs.Payment.AlfaPay.Client;
+using Valhalla.MessageQueue;
 
 namespace Tgs.Payment.AlfaPay.MessageQueue;
 
@@ -11,13 +12,11 @@ internal class DepositTimeoutHandler(
     IPaymentServiceClient paymentServiceClient,
     IPaymentClient paymentClient,
     AlfaPayClient alfaPayClient,
+    IOptions<AlfaPayOptions> optionsAccessor,
     ILogger<DepositTimeoutHandler> logger)
     : IMessageHandler<ScheduleRequest>
 {
-    private readonly IPaymentServiceClient _paymentServiceClient = paymentServiceClient ?? throw new ArgumentNullException(nameof(paymentServiceClient));
-    private readonly IPaymentClient _paymentClient = paymentClient ?? throw new ArgumentNullException(nameof(paymentClient));
-    private readonly AlfaPayClient _alfaPayClient = alfaPayClient ?? throw new ArgumentNullException(nameof(alfaPayClient));
-    private readonly ILogger<DepositTimeoutHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly AlfaPayOptions _options = optionsAccessor.Value;
 
     public async ValueTask HandleAsync(
         string subject,
@@ -25,9 +24,9 @@ internal class DepositTimeoutHandler(
         IEnumerable<MessageHeaderValue>? headerValues,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation(
-            "Deposit Schedule Handler Receive request Form Id:{request.FormId.ToGuid()}, "
-                + "Schedule Time:{request.ScheduleTime.ToDateTime():yyyy/MM/dd HH:mm:ss}",
+        logger.LogInformation(
+            "Deposit Schedule Handler Receive request Form Id:{FormId}, "
+                + "Schedule Time:{ScheduleTime:yyyy/MM/dd HH:mm:ss}",
             data.FormId.ToGuid(),
             data.ScheduleTime.ToDateTime());
 
@@ -35,20 +34,20 @@ internal class DepositTimeoutHandler(
 
         try
         {
-            var depositForm = await _paymentServiceClient
+            var depositForm = await paymentServiceClient
                 .GetDepositFormAsync(formId, cancellationToken)
                 .ConfigureAwait(false);
 
             if (depositForm is null)
             {
-                _logger.LogWarning("Deposit Form {request.FormId.ToGuid()} not found.", data.FormId.ToGuid());
+                logger.LogWarning("Deposit Form {FormId} not found.", data.FormId.ToGuid());
                 return;
             }
 
             var brandId = depositForm.BrandId;
 
-            _logger.LogInformation(
-                "GetDepositFormAsync Form Id:{depositForm.Id}, Brand Id:{brandId}, Status:{depositForm.Status}",
+            logger.LogInformation(
+                "GetDepositFormAsync Form Id:{DepositFormId}, Brand Id:{BrandId}, Status:{DepositFormStatus}",
                 depositForm.Id,
                 brandId,
                 depositForm.Status);
@@ -58,28 +57,28 @@ internal class DepositTimeoutHandler(
 
             var applyInfo = JsonSerializer.Deserialize<AlfaPayDepositApplyInfo>(depositForm.ApplyInfo!, AlfaPayUtility.SerializerOptions)!;
 
-            var result = await _alfaPayClient.QueryDepositFormAsync(
+            var result = await alfaPayClient.QueryDepositFormAsync(
                 applyInfo.Settings.ApiToken,
                 formId,
                 cancellationToken).ConfigureAwait(false);
 
             if (result?.State is "timeout")
-                await _paymentClient
+                await paymentClient
                     .RejectDepositAsync(formId, brandId, cancellationToken)
                     .ConfigureAwait(false);
             else if (result?.State is "processing")
-                await _paymentClient.ScheduleAsync(
-                    "tgs.payment.alfapay.deposit.schedule.reject",
+                await paymentClient.ScheduleAsync(
+                    string.Format(AlfaPayConsts.ScheduleRejectSubjectTemplate, _options.PaymentCode.ToLower()),
                     formId,
                     DateTime.UtcNow.AddMinutes(10D),
                     cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Process deposit timeout error!");
+            logger.LogError(ex, "Process deposit timeout error!");
 
-            await _paymentClient.ScheduleAsync(
-                "tgs.payment.alfapay.deposit.schedule.reject",
+            await paymentClient.ScheduleAsync(
+                string.Format(AlfaPayConsts.ScheduleRejectSubjectTemplate, _options.PaymentCode.ToLower()),
                 formId,
                 DateTime.UtcNow.AddMinutes(10D),
                 cancellationToken).ConfigureAwait(false);
