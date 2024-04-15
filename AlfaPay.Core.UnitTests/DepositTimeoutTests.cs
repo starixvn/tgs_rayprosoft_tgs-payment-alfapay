@@ -3,6 +3,7 @@ using System.Text.Json;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using RichardSzalay.MockHttp;
 using Tgs.Payment.AlfaPay;
@@ -26,11 +27,27 @@ public class DepositTimeoutTests
         var httpClient = mockHttp.ToHttpClient();
         httpClient.BaseAddress = new Uri("https://alfapay63.com");
 
-        var fakeAlfaPayClient = new AlfaPayClient(httpClient, new AlfaPayHasher(NullLogger<AlfaPayHasher>.Instance), NullLogger<AlfaPayClient>.Instance);
+        var fakeAlfaPayClient = new AlfaPayClient(
+            httpClient,
+            new AlfaPayHasher(NullLogger<AlfaPayHasher>.Instance),
+            NullLogger<AlfaPayClient>.Instance);
 
         var fakePaymentClient = Substitute.For<IPaymentClient>();
 
-        var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, NullLogger<DepositTimeoutHandler>.Instance);
+        var alfaPayOptions = new OptionsWrapper<AlfaPayOptions>(new AlfaPayOptions
+        {
+            PaymentCode = "AlfaPay",
+            CallbackBaseUrl = new Uri("http://localhost"),
+            PaymentApiUrl = new Uri("https://alfapay63.com"),
+            PaymentServiceBaseUrl = new Uri("http://svc")
+        });
+
+        var sut = new DepositTimeoutHandler(
+            fakePaymentServiceClient,
+            fakePaymentClient,
+            fakeAlfaPayClient,
+            alfaPayOptions,
+            NullLogger<DepositTimeoutHandler>.Instance);
 
         var formId = Guid.Parse("1091386e-c9cc-4152-95fa-dfcf73c08026");
         var brandId = Guid.Parse("4e86719f-243f-46f6-b010-5c758b7285af");
@@ -106,11 +123,27 @@ public class DepositTimeoutTests
         var httpClient = mockHttp.ToHttpClient();
         httpClient.BaseAddress = new Uri("https://alfapay63.com");
 
-        var fakeAlfaPayClient = new AlfaPayClient(httpClient, new AlfaPayHasher(NullLogger<AlfaPayHasher>.Instance), NullLogger<AlfaPayClient>.Instance);
+        var fakeAlfaPayClient = new AlfaPayClient(
+            httpClient,
+            new AlfaPayHasher(NullLogger<AlfaPayHasher>.Instance),
+            NullLogger<AlfaPayClient>.Instance);
 
         var fakePaymentClient = Substitute.For<IPaymentClient>();
 
-        var sut = new DepositTimeoutHandler(fakePaymentServiceClient, fakePaymentClient, fakeAlfaPayClient, NullLogger<DepositTimeoutHandler>.Instance);
+        var alfaPayOptions = new OptionsWrapper<AlfaPayOptions>(new AlfaPayOptions
+        {
+            PaymentCode = "AlfaPay",
+            CallbackBaseUrl = new Uri("http://localhost"),
+            PaymentApiUrl = new Uri("https://alfapay63.com"),
+            PaymentServiceBaseUrl = new Uri("http://svc")
+        });
+
+        var sut = new DepositTimeoutHandler(
+            fakePaymentServiceClient,
+            fakePaymentClient,
+            fakeAlfaPayClient,
+            alfaPayOptions,
+            NullLogger<DepositTimeoutHandler>.Instance);
 
         var formId = Guid.Parse("1091386e-c9cc-4152-95fa-dfcf73c08026");
         var brandId = Guid.Parse("4e86719f-243f-46f6-b010-5c758b7285af");
