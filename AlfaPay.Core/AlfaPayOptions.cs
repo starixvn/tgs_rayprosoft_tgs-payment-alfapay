@@ -2,6 +2,8 @@
 
 public class AlfaPayOptions
 {
+    public required string PaymentCode { get; set; }
+
     public required Uri CallbackBaseUrl { get; set; }
 
     public required Uri PaymentApiUrl { get; set; }

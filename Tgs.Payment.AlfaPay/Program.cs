@@ -52,31 +52,38 @@ builder.Services
         }));
 
 builder.Services
-    .AddKeyedSingleton("Nats",
-    (sp, _) => new NatsConnection(NatsOpts.Default with
-    {
-        Url = builder.Configuration.GetConnectionString("Nats")!,
-        SerializerRegistry = TgsNatsSerializerRegistration.Default
-    }))
+    .AddKeyedSingleton(
+        "Nats",
+        (sp, _) => new NatsConnection(NatsOpts.Default with
+        {
+            Url = builder.Configuration.GetConnectionString("Nats")!,
+            SerializerRegistry = TgsNatsSerializerRegistration.Default
+        }))
     .AddMessageQueue()
-    .AddNatsMessageQueue(natsConfig => natsConfig
-        .ConfigureResolveConnection(sp => sp.GetRequiredKeyedService<NatsConnection>("Nats"))
-        .AddProcessor(
-            ProcessorTypes.DepositProcessorType,
-            "tgs.payment.alfapay.deposit",
-            "tgs.payment.alfapay.deposit")
-        .AddProcessor(
-            ProcessorTypes.WithdrawProcessorType,
-            "tgs.payment.alfapay.withdraw",
-            "tgs.payment.alfapay.withdraw")
-        .AddHandler(
-            ProcessorTypes.DepositTimeoutHandlerType,
-            "tgs.payment.alfapay.deposit.schedule.reject",
-            "tgs.payment.alfapay.deposit.schedule.reject")
-        .AddProcessor(
-            ProcessorTypes.GetBalanceProcessorType,
-            "tgs.payment.alfapay.balance",
-            "tgs.payment.alfapay.balance"))
+    .AddNatsMessageQueue(natsConfig =>
+    {
+        var paymentCode = builder.Configuration.GetValue<string>("AlfaPay:PaymentCode") ?? "AlfaPay";
+        var lowerCaseCode = paymentCode.ToLower();
+
+        _ = natsConfig
+            .ConfigureResolveConnection(sp => sp.GetRequiredKeyedService<NatsConnection>("Nats"))
+            .AddProcessor(
+                ProcessorTypes.DepositProcessorType,
+                string.Format(AlfaPayConsts.DepositSubjectTemplate, lowerCaseCode),
+                string.Format(AlfaPayConsts.DepositSubjectTemplate, lowerCaseCode))
+            .AddProcessor(
+                ProcessorTypes.WithdrawProcessorType,
+                string.Format(AlfaPayConsts.WithdrawSubjectTemplate, lowerCaseCode),
+                string.Format(AlfaPayConsts.WithdrawSubjectTemplate, lowerCaseCode))
+            .AddHandler(
+                ProcessorTypes.DepositTimeoutHandlerType,
+                string.Format(AlfaPayConsts.ScheduleRejectSubjectTemplate, lowerCaseCode),
+                string.Format(AlfaPayConsts.ScheduleRejectSubjectTemplate, lowerCaseCode))
+            .AddProcessor(
+                ProcessorTypes.GetBalanceProcessorType,
+                string.Format(AlfaPayConsts.QueryBalanceSubjectTemplate, lowerCaseCode),
+                string.Format(AlfaPayConsts.QueryBalanceSubjectTemplate, lowerCaseCode));
+    })
     .AddNatsGlobPatternExchange("*");
 
 var excludeExtensions = new[] { "html", "ico", "png", "jpg" };

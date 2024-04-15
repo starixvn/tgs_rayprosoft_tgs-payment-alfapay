@@ -35,7 +35,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: OTEL_SERVICE_NAME
-              value: Payment-AlfaPay({{ .Release.Namespace }})
+              value: Payment-{{ .Values.paymentCode }}({{ .Release.Namespace }})
             - name: NODE_IP
               value: fluent-bit.logging
             - name: ConnectionStrings__Nats
@@ -53,6 +53,8 @@ spec:
                 secretKeyRef:
                   name: tgs-connections
                   key: payment-alfapay-callback
+            - name: AlfaPay__PaymentCode
+              value: {{ .Values.paymentCode }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
