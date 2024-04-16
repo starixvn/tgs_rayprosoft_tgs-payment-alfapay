@@ -68,6 +68,43 @@ deploy-dev:
   only:
     - main
   when: on_success
+  script:
+    - deploy_k8s $TgsSettingKey $HelmTemplateFolderName $namespace
+    - |
+      cat << EOF | name_template="tgs-alfapay-idr" deploy_k8s $TgsSettingKey $HelmTemplateFolderName $namespace
+        {
+          "paymentCode": "AlfaPay-IDR",
+          "podEnv": [
+            {
+              "name": "ConnectionStrings__Nats",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "nats"
+                }
+              }
+            },
+            {
+              "name": "AlfaPay__PaymentApiUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-alfapay-idr-paymentApiUrl"
+                }
+              }
+            },
+            {
+              "name": "AlfaGoPay__CallbackBaseUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-alfapay-idr-callback"
+                }
+              }
+            }
+          ]
+        }
+      EOF
 
 deploy-staging:
   extends: .deploy-template
@@ -84,6 +121,43 @@ deploy-staging:
   only:
     - main
   when: manual
+  script:
+    - deploy_k8s $TgsSettingKey $HelmTemplateFolderName $namespace
+    - |
+      cat << EOF | name_template="tgs-alfapay-idr" deploy_k8s $TgsSettingKey $HelmTemplateFolderName $namespace
+        {
+          "paymentCode": "AlfaPay-IDR",
+          "podEnv": [
+            {
+              "name": "ConnectionStrings__Nats",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "nats"
+                }
+              }
+            },
+            {
+              "name": "AlfaPay__PaymentApiUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-alfapay-idr-paymentApiUrl"
+                }
+              }
+            },
+            {
+              "name": "AlfaGoPay__CallbackBaseUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-alfapay-idr-callback"
+                }
+              }
+            }
+          ]
+        }
+      EOF
 
 deploy-prod:
   extends: .deploy-template
@@ -100,3 +174,40 @@ deploy-prod:
   only:
     - main
   when: manual
+  script:
+    - deploy_k8s $TgsSettingKey $HelmTemplateFolderName $namespace
+    - |
+      cat << EOF | name_template="tgs-alfapay-idr" deploy_k8s $TgsSettingKey $HelmTemplateFolderName $namespace
+        {
+          "paymentCode": "AlfaPay-IDR",
+          "podEnv": [
+            {
+              "name": "ConnectionStrings__Nats",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "nats"
+                }
+              }
+            },
+            {
+              "name": "AlfaPay__PaymentApiUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-alfapay-idr-paymentApiUrl"
+                }
+              }
+            },
+            {
+              "name": "AlfaGoPay__CallbackBaseUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-alfapay-idr-callback"
+                }
+              }
+            }
+          ]
+        }
+      EOF
