@@ -105,6 +105,41 @@ deploy-dev:
           ]
         }
       EOF
+    - |
+      cat << EOF | name_template="tgs-megapay" deploy_k8s $TgsSettingKey $HelmTemplateFolderName $namespace
+        {
+          "paymentCode": "MegaPay",
+          "podEnv": [
+            {
+              "name": "ConnectionStrings__Nats",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "nats"
+                }
+              }
+            },
+            {
+              "name": "AlfaPay__PaymentApiUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-megapay-paymentApiUrl"
+                }
+              }
+            },
+            {
+              "name": "AlfaGoPay__CallbackBaseUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-megapay-callback"
+                }
+              }
+            }
+          ]
+        }
+      EOF
 
 deploy-staging:
   extends: .deploy-template
@@ -158,6 +193,41 @@ deploy-staging:
           ]
         }
       EOF
+    - |
+      cat << EOF | name_template="tgs-megapay" deploy_k8s $TgsSettingKey $HelmTemplateFolderName $namespace
+        {
+          "paymentCode": "MegaPay",
+          "podEnv": [
+            {
+              "name": "ConnectionStrings__Nats",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "nats"
+                }
+              }
+            },
+            {
+              "name": "AlfaPay__PaymentApiUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-megapay-paymentApiUrl"
+                }
+              }
+            },
+            {
+              "name": "AlfaGoPay__CallbackBaseUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-megapay-callback"
+                }
+              }
+            }
+          ]
+        }
+      EOF
 
 deploy-prod:
   extends: .deploy-template
@@ -205,6 +275,41 @@ deploy-prod:
                 "secretKeyRef": {
                   "name": "tgs-connections",
                   "key": "payment-alfapay-idr-callback"
+                }
+              }
+            }
+          ]
+        }
+      EOF
+    - |
+      cat << EOF | name_template="tgs-megapay" deploy_k8s $TgsSettingKey $HelmTemplateFolderName $namespace
+        {
+          "paymentCode": "MegaPay",
+          "podEnv": [
+            {
+              "name": "ConnectionStrings__Nats",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "nats"
+                }
+              }
+            },
+            {
+              "name": "AlfaPay__PaymentApiUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-megapay-paymentApiUrl"
+                }
+              }
+            },
+            {
+              "name": "AlfaGoPay__CallbackBaseUrl",
+              "valueFrom": {
+                "secretKeyRef": {
+                  "name": "tgs-connections",
+                  "key": "payment-megapay-callback"
                 }
               }
             }
