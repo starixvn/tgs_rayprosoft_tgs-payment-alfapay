@@ -89,7 +89,8 @@ var withdrawSettings = new AlfaPayWithdrawSettings(
     accountNumber,
     bankId,
     bankOwner,
-    orderNo);
+    orderNo,
+    ExchangeRate: 1m);
 
 var withdrawReturn = await paymentClient.WithdrawAsync(
                 "tgs.payment.alfapay.withdraw",

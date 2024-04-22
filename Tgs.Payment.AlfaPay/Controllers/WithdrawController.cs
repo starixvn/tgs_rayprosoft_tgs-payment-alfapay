@@ -68,6 +68,7 @@ public class WithdrawController(ILogger<WithdrawController> logger) : Controller
             Sign = sign,
             ThirdPartyOrderNo = source.TradeNo,
             Status = source.State,
+            AfterExchangeAmount = decimal.Parse(source.Amount) / withdrawForm.ApplyInfo.Settings.ExchangeRate,
         };
 
         var fsm = PaymentStateMachineFactory.CreateWithdrawStateMachine(withdrawForm.Status);

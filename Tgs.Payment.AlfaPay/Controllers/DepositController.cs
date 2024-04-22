@@ -59,6 +59,8 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
             return "fail";
         }
 
+        var exchangeRate = depositForm.ApplyInfo.Settings.ExchangeRate;
+
         var paymentReturn = new AlfaPayDepositReturn()
         {
             ThirdPartyOrderNo = source.TradeNo,
@@ -67,6 +69,8 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
             FormId = formId,
             Status = source.State,
             Sign = source.Sign,
+            AfterExchangeOrderAmount = source.RequestAmount / exchangeRate,
+            AfterExchangeRealAmount = decimal.Parse(source.Amount) / exchangeRate,
         };
 
         var fsm = PaymentStateMachineFactory.CreateDepositStateMachine(depositForm.Status);
@@ -85,7 +89,7 @@ public class DepositController(ILogger<DepositController> logger) : ControllerBa
                 await paymentClient.ApproveDepositAsync(
                     depositForm.Id,
                     depositForm.BrandId,
-                    paymentReturn.OrderAmount,
+                    paymentReturn.AfterExchangeOrderAmount,
                     HttpContext.RequestAborted).ConfigureAwait(false);
             }
         }

@@ -42,7 +42,8 @@ public class WithdrawTests(ITestOutputHelper testOutputHelper)
             "9517585997",
             "GCASH",
             "測試帳號",
-            formId);
+            formId,
+            ExchangeRate: 1m);
         var withdrawResponse = new AlfaPayWithdrawResponse(formId, "42e74452-503d-4de8-ad21-aa879a3af6e9");
 
         var applyInfo = new AlfaPayWithdrawApplyInfo(settings, withdrawResponse);
@@ -81,6 +82,7 @@ public class WithdrawTests(ITestOutputHelper testOutputHelper)
             Sign = "09b9da81dfe0f5a32cfa8fee283a2b69",
             ThirdPartyOrderNo = "42e74452-503d-4de8-ad21-aa879a3af6e9",
             Status = "refund",
+            AfterExchangeAmount = 100.00m
         };
 
         Assert.Equal("ok", actual);

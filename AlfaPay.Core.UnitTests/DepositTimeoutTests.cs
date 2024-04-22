@@ -63,7 +63,8 @@ public class DepositTimeoutTests
                 "A2B0ZGwcPXFw8YB84mSrXnVVGQnwTImulmRxvXmsWxMKXaWBv2d3NbcwGxLc",
                 "DzBwQEyXd2OZZ8IFWrQCWunnmd0vZHqrKeKOaxxNe2gpS5ZSYx2KdFext74J",
                 formId,
-                null),
+                null,
+                ExchangeRate: 1m),
             new AlfaPayDepositResponse(
                 500m,
                 formId,
@@ -159,7 +160,8 @@ public class DepositTimeoutTests
                 "A2B0ZGwcPXFw8YB84mSrXnVVGQnwTImulmRxvXmsWxMKXaWBv2d3NbcwGxLc",
                 "DzBwQEyXd2OZZ8IFWrQCWunnmd0vZHqrKeKOaxxNe2gpS5ZSYx2KdFext74J",
                 formId,
-                null),
+                null, 
+                ExchangeRate: 1m),
             new AlfaPayDepositResponse(
                 500m,
                 formId,
