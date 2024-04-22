@@ -11,4 +11,6 @@ public class AlfaPayWithdrawReturn
     public string Status { get; init; } = default!;
 
     public string Sign { get; init; } = default!;
+
+    public decimal AfterExchangeAmount { get; set; }
 }

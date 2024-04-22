@@ -55,7 +55,8 @@ public class DepositTests(ITestOutputHelper testOutputHelper)
                 apiToken,
                 notifyToken,
                 formId,
-                null),
+                null,
+                ExchangeRate: 1m),
              new AlfaPayDepositResponse(
                 500m,
                 formId,
@@ -87,6 +88,8 @@ public class DepositTests(ITestOutputHelper testOutputHelper)
             RealAmount = 500.00m,
             OrderAmount = 500m,
             Sign = "d91ba7c240a3262c1995a9601c3acf78",
+            AfterExchangeOrderAmount = 500m,
+            AfterExchangeRealAmount = 500.00m,
         };
 
         _ = fakePaymentServiceClient.Received(1)

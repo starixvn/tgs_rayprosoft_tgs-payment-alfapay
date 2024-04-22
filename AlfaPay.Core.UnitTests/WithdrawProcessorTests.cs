@@ -53,7 +53,8 @@ public class WithdrawProcessorTests
             AccountNumber: "9517585997",
             BankId: "GCASH",
             BankOwner: "測試帳號",
-            formId);
+            formId,
+            ExchangeRate: 1m);
 
         var request = new WithdrawRequest
         {

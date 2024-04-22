@@ -14,4 +14,8 @@ public record AlfaPayDepositReturn
 
     public string Sign { get; init; } = default!;
     public string CallbackUrl { get; init; } = default!;
+
+    public decimal AfterExchangeOrderAmount { get; set; }
+
+    public decimal AfterExchangeRealAmount { get; set; }
 }
