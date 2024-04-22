@@ -40,6 +40,7 @@ public class AlfaPayClientTests
             500.00m,
             formId,
             new Uri("https://dev-payment.rpgp.cc/alfapay/deposit/callback"),
+            null,
             null);
 
         _ = await Assert.ThrowsAsync<ApiFailException>(async () => await sut.DepositAsync(apiToken, order));
@@ -82,6 +83,7 @@ public class AlfaPayClientTests
             500.00m,
             formId,
             new Uri("https://dev-payment.rpgp.cc/alfapay/deposit/callback"),
+            null,
             null);
 
         var actual = await sut.DepositAsync(apiToken, order);

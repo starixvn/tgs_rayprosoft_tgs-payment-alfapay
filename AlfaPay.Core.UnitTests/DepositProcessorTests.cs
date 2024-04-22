@@ -52,6 +52,7 @@ public class DepositProcessorTests
             notifyToken,
             formId,
             null,
+            null,
             ExchangeRate: 1m);
 
         var request = new DepositRequest
