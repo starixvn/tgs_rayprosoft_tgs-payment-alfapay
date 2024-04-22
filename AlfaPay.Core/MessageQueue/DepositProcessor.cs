@@ -33,7 +33,8 @@ internal class DepositProcessor(
             decimal.Parse(data.Amount) * settings.ExchangeRate,
             settings.FormId,
             new Uri($"{_options.CallbackBaseUrl}/deposit/callback"),
-            settings.PaidName);
+            settings.PaidName,
+            settings.BankId);
 
         var depositResponse = await alfaPayClient
             .DepositAsync(settings.ApiToken, order, cancellationToken)

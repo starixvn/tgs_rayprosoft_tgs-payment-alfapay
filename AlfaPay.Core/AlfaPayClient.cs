@@ -32,6 +32,9 @@ public class AlfaPayClient(
         if (order.PaidName is not null)
             dict["paid_name"] = order.PaidName.ToString();
 
+        if (order.BankId is not null)
+            dict["bank_id"] = order.BankId.ToString();
+
         var response = await _httpClient
             .PostAsJsonAsync("/api/transaction", dict, cancellationToken)
             .ConfigureAwait(false);
