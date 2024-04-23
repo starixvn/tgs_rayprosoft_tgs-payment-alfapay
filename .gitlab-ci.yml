@@ -94,7 +94,7 @@ deploy-dev:
               }
             },
             {
-              "name": "AlfaGoPay__CallbackBaseUrl",
+              "name": "AlfaPay__CallbackBaseUrl",
               "valueFrom": {
                 "secretKeyRef": {
                   "name": "tgs-connections",
@@ -129,7 +129,7 @@ deploy-dev:
               }
             },
             {
-              "name": "AlfaGoPay__CallbackBaseUrl",
+              "name": "AlfaPay__CallbackBaseUrl",
               "valueFrom": {
                 "secretKeyRef": {
                   "name": "tgs-connections",
@@ -182,7 +182,7 @@ deploy-staging:
               }
             },
             {
-              "name": "AlfaGoPay__CallbackBaseUrl",
+              "name": "AlfaPay__CallbackBaseUrl",
               "valueFrom": {
                 "secretKeyRef": {
                   "name": "tgs-connections",
@@ -217,7 +217,7 @@ deploy-staging:
               }
             },
             {
-              "name": "AlfaGoPay__CallbackBaseUrl",
+              "name": "AlfaPay__CallbackBaseUrl",
               "valueFrom": {
                 "secretKeyRef": {
                   "name": "tgs-connections",
@@ -270,7 +270,7 @@ deploy-prod:
               }
             },
             {
-              "name": "AlfaGoPay__CallbackBaseUrl",
+              "name": "AlfaPay__CallbackBaseUrl",
               "valueFrom": {
                 "secretKeyRef": {
                   "name": "tgs-connections",
@@ -305,7 +305,7 @@ deploy-prod:
               }
             },
             {
-              "name": "AlfaGoPay__CallbackBaseUrl",
+              "name": "AlfaPay__CallbackBaseUrl",
               "valueFrom": {
                 "secretKeyRef": {
                   "name": "tgs-connections",
