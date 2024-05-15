@@ -51,7 +51,7 @@ internal class DepositProcessor(
         await paymentClient.ScheduleAsync(
             string.Format(AlfaPayConsts.ScheduleRejectSubjectTemplate, _options.PaymentCode.ToLower()),
             settings.FormId,
-            DateTime.UtcNow.AddMinutes(15D).ToUniversalTime(),
+            DateTime.UtcNow.AddMinutes(60D).ToUniversalTime(),
             cancellationToken).ConfigureAwait(false);
 
         return new DepositResponse
